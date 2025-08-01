@@ -8,7 +8,7 @@ This document outlines the planned phases for building out the Valac system, fro
 
 Goal: A self-contained, local system that runs end-to-end.
 
-- [ ] React + Vite frontend sends user input to backend
+- [x] React + Vite frontend sends user input to backend
 - [x] Node.js backend with `/ask` endpoint
 - [x] Ollama LLM (e.g., Mistral) running locally
 - [x] Generate embeddings from user prompts
