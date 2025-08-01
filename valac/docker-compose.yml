@@ -1,0 +1,66 @@
+services:
+  # space to
+  # avoid that popup
+  frontend:
+    build: ./frontend
+    ports:
+      - '5173:5173'
+    # depends_on:
+    #   - backend
+    networks:
+      - valac-net
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - '3000:3000'
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - NODE_ENV=development
+    container_name: backend
+    networks:
+      - valac-net
+    volumes:
+      - ./backend/src:/app/src
+    # command: npx nodemon src/index.ts
+
+  ollama:
+    build:
+      context: ./ollama
+    container_name: ollama
+    ports:
+      - '11434:11434'
+    environment:
+      - OLLAMA_LISTEN=0.0.0.0:11434
+    volumes:
+      - ./data/ollama:/root/.ollama
+    networks:
+      - valac-net
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant
+    ports:
+      - '6333:6333' # REST API
+      - '6334:6334' # gRPC API (optional)
+    volumes:
+      - ./data/qdrant:/qdrant/storage
+    networks:
+      - valac-net
+  # chromadb:
+  #   build:
+  #     context: ./chromadb
+  #   container_name: chromadb
+  #   ports:
+  #     - '8000:8000'
+  #   volumes:
+  #     - ./data/chroma:/chroma
+  #   networks:
+  #     - valac-net
+
+volumes:
+  ollama_models:
+
+networks:
+  valac-net:
+    name: valac-net
+    driver: bridge
