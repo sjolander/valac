@@ -1,8 +1,37 @@
-# Valac Project Development Phases
+# Valac
 
-This document outlines the planned phases for building out the Valac system, from a local proof of concept to a cloud-hosted, agentic assistant.
+**Self-hosted AI with intelligent memory management**
 
----
+Valac is a solo-developed personal AI assistant focused on offline, memory-augmented interactions. It builds a persistent memory of your interactions, creating increasingly personalized responses over time.
+
+**Key Features:**
+
+- Semantic memory via **vector embeddings** and **similarity search**
+- **Retrieval-augmented generation (RAG)** with Qdrant and Ollama
+- Local-first LLM orchestration with **no cloud dependencies**
+- Thoughtful architecture for **future agent-like functionality**
+- **Built with**: Node.js, TypeScript, React, Qdrant, Ollama
+
+Valac stores and categorizes every interaction, then uses related memories from your history to provide more contextual, personalized responses as your conversation history grows.
+
+```mermaid
+graph TD;
+    User --> UI[React Frontend]
+    UI --> API[Node.js Backend<br/>- REST API<br/>- Scheduling<br/>- Memory Management]
+    API --> LLM[Ollama LLM<br/>- Embedding<br/>- Prompt Generation<br/>- Tag & Topic Generation]
+    API --> VDB[Qdrant Vector DB<br/>- Memory Storage<br/>- Top K Semantic Memory Retrieval]
+
+
+    API --> UI
+    UI --> User
+
+    style UI fill:#e1f5fe
+    style API fill:#f3e5f5
+    style LLM fill:#e8f5e8
+    style VDB fill:#fff3e0
+```
+
+## Current Status: Functional for extended personalized conversations
 
 ## ✅ Phase 1: Proof of Concept
 
@@ -20,42 +49,49 @@ Goal: A self-contained, local system that runs end-to-end.
 
 ---
 
-## 🔜 Phase 2: Persistence
+## 🔜 Phase 2: Memory Management
 
-Goal: Prepare for real-world users and long-term memory.
+Goal: Sidestep hallucinations by trimming and summarizing memories
 
-- [ ] Add user-selectable LLM models
-- [ ] Add persistent disk-based or cloud storage
-- [ ] Track conversation/session IDs
-- [ ] Add memory filtering and deletion from UI
+- [x] Add time to memories
+- [ ] Streaming response in UI
+- [ ] Show UI indication of memory updates
+- [ ] Add tags/topics to memories - What other metadata would add value? track emotional content?
+- [ ] Track conversation/session IDs - Should the user need to open a new chat to start a new conversation or is there a value-add if the system to detects it?
+- [ ] Allow ability for user to spawn multiple threads based from the same conversation.
+- [ ] Memory summarization
+- [ ] Add topic viewer to UI - Graph visualization? Word cloud?
+- [ ] Manual tag editing
+- [ ] Memory deletion from UI
+- [ ] Memory locks in UI - User marks a memory/topic/conversation as permanent and not a candidate for deletion and/or summarization
+- [ ] DB size limit control in UI
 
 ---
 
-## 🚧 Phase 3: Scheduling, Awareness, and Agency
+## 🔜 Phase 3: Agency and Autonomous Behavior
 
-Goal: Add proactive behavior and time/context awareness.
+Goal: Agency and passive memory management
 
-- [ ] Add scheduling/task queue system
-- [ ] Enable Valac to initiate actions (autonomous behavior)
-- [ ] Integrate plugin/capability system (search, email, etc.)
-- [ ] Maintain time awareness and deadlines
-- [ ] Summarize and categorize memory by topic
+- [ ] Enable Valac to trim its own memory autonomously - consider memory importance based on frequency of access & relation to other topics
+- [ ] Integrate LangChain plugins
+- [ ] User selectable LLM models for both the core LLM (used for prompt generation) and auxiliary LLM (used for tag generation)
 
 ---
 
 ## 🎯 Phase 4: Hosting, Deployment, and UX Polish
 
-Goal: Transition to production-ready, demo-capable deployment.
+Goal: Cloud-based deployment for quick demonstrations
 
 - [ ] Deploy backend (Render, Fly.io, etc.)
 - [ ] Deploy frontend (Vercel, Netlify, etc.)
 - [ ] Add authentication, rate limiting, logging
 - [ ] Improve error handling and user feedback
-- [ ] Polish UI for memory review/editing
+- [ ] Seed with memories
 
----
+## Design Philosophy
 
-## Notes
+Valac explores what a personal, local-first AI assistant could look like — one with long-term memory, contextual awareness, and plugin-based actionability. The project is designed with future capabilities in mind:
 
-- The system is designed to be modular: LLM backend, vector store, and storage abstraction can all be swapped independently.
-- Each phase should maintain backward compatibility where possible to avoid regressions during future iteration.
+- Conversational memory that evolves over time
+- Plugin system enabling agentic behaviors ("call a taxi", "remind me", "search the web")
+- LoRA-ready architecture for eventual fine-tuning
