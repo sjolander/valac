@@ -1,0 +1,47 @@
+@use 'sass:color';
+@use 'sass:math';
+
+// Convert sRGB channel (0..255) -> linear component for luminance calc
+// Returns number in 0..1
+@function _srgb-to-linear($channel) {
+  $s: $channel / 255;
+  @if $s <= 0.03928 {
+    @return $s / 12.92;
+  }
+  @return math.pow((($s + 0.055) / 1.055), 2.4);
+}
+
+// Relative luminance per WCAG: 0..1
+@function _luminance($col) {
+  $r: color.red($col);
+  $g: color.green($col);
+  $b: color.blue($col);
+
+  $r_lin: _srgb-to-linear($r);
+  $g_lin: _srgb-to-linear($g);
+  $b_lin: _srgb-to-linear($b);
+
+  @return 0.2126 * $r_lin + 0.7152 * $g_lin + 0.0722 * $b_lin;
+}
+
+// Contrast ratio: (L1 + .05) / (L2 + .05) where L1 >= L2
+@function contrast-ratio($a, $b) {
+  $la: _luminance($a);
+  $lb: _luminance($b);
+  @if $la < $lb {
+    $tmp: $la; $la: $lb; $lb: $tmp;
+  }
+  @return ($la + 0.05) / ($lb + 0.05);
+}
+
+// Choose the best of $light or $dark for contrast against $bg.
+// Returns the chosen color (#fff or #000 by default).
+@function auto-text-color($bg, $light: #ffffff, $dark: #000000) {
+  $contrastLight: contrast-ratio($bg, $light);
+  $contrastDark: contrast-ratio($bg, $dark);
+
+  @if $contrastLight >= $contrastDark {
+    @return $light;
+  }
+  @return $dark;
+}

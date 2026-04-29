@@ -1,5 +1,10 @@
 import { useState } from 'react';
 import axios from 'axios';
+import MemoryViewer from './MemoryViewer';
+import './App.css';
+import AppShell from './components/AppShell/AppShell';
+
+const API_URL = import.meta.env.VITE_API_URL;
 
 function App() {
   const [prompt, setPrompt] = useState('');
@@ -12,7 +17,7 @@ function App() {
     setResponse('');
     setError(null);
     try {
-      const res = await axios.post('http://localhost:3000/ask', { prompt });
+      const res = await axios.post(`${API_URL}/ask`, { prompt });
       setResponse(res.data.response);
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
@@ -26,27 +31,32 @@ function App() {
   };
 
   return (
-    <div style={{ padding: '2rem', fontFamily: 'sans-serif' }}>
-      <h1>Valac Assistant</h1>
-      <textarea
-        rows={4}
-        cols={50}
-        value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
-        placeholder="Enter your prompt..."
-      />
-      <br />
-      <button onClick={ask} disabled={loading}>
-        {loading ? 'Thinking...' : 'Ask'}
-      </button>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      {response && (
-        <div style={{ marginTop: '1rem', whiteSpace: 'pre-wrap' }}>
-          <strong>Response:</strong>
-          <p>{response}</p>
-        </div>
-      )}
-    </div>
+    <>
+      <AppShell></AppShell>
+      {/* <div class="appView">
+      <div>
+        <h1></h1>
+        <textarea
+          rows={4}
+          cols={50}
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder="Enter your prompt..."
+          />
+        <br />
+        <button onClick={ask} disabled={loading}>
+          {loading ? 'Thinking...' : 'Ask'}
+        </button>
+        {error && <p style={{ color: 'red' }}>{error}</p>}
+        {response && (
+          <div style={{ marginTop: '1rem', whiteSpace: 'pre-wrap' }}>
+            <strong>Response:</strong>
+            <p>{response}</p>
+          </div>
+        )}
+      </div>
+    </div> */}
+    </>
   );
 }
 

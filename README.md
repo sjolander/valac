@@ -7,19 +7,20 @@ Valac is a solo-developed personal AI assistant focused on offline, memory-augme
 **Key Features:**
 
 - Semantic memory via **vector embeddings** and **similarity search**
-- **Retrieval-augmented generation (RAG)** with Qdrant and Ollama
+- Verbatim conversation memory via Postgres
 - Local-first LLM orchestration with **no cloud dependencies**
 - Thoughtful architecture for **future agent-like functionality**
-- **Built with**: Node.js, TypeScript, React, Qdrant, Ollama
+- **Built with**: Python, TypeScript, React, Qdrant, PostgreSQL, Ollama
 
 Valac stores and categorizes every interaction, then uses related memories from your history to provide more contextual, personalized responses as your conversation history grows.
 
 ```mermaid
 graph TD;
     User --> UI[React Frontend]
-    UI --> API[Node.js Backend<br/>- REST API<br/>- Scheduling<br/>- Memory Management]
-    API --> LLM[Ollama LLM<br/>- Embedding<br/>- Prompt Generation<br/>- Tag & Topic Generation]
-    API --> VDB[Qdrant Vector DB<br/>- Memory Storage<br/>- Top K Semantic Memory Retrieval]
+    UI --> API[Python Backend<br/>- REST API<br/>- Scheduling<br/>- Memory Management]
+    API --> LLM[Ollama LLM<br/>- Embedding<br/>- Prompt Generation<br/>- Title & Topic Generation]
+    API --> VDB[Qdrant Vector DB<br/>- Topic Storage<br/>- Top K Semantic Memory Retrieval]
+    API --> PostgreSQL[PostgreSQL DB<br/> Conversation History]
 
 
     API --> UI
@@ -54,13 +55,14 @@ Goal: A self-contained, local system that runs end-to-end.
 Goal: Sidestep hallucinations by trimming and summarizing memories
 
 - [x] Add time to memories
-- [ ] Streaming response in UI
-- [ ] Show UI indication of memory updates
-- [ ] Add tags/topics to memories - What other metadata would add value? track emotional content?
-- [ ] Track conversation/session IDs - Should the user need to open a new chat to start a new conversation or is there a value-add if the system to detects it?
+- [x] Streaming response in UI
+- [x] Show UI indication of memory updates
+- [x] Add tags/topics to memories
+- [x] Track conversation/session IDs
 - [ ] Allow ability for user to spawn multiple threads based from the same conversation.
 - [ ] Memory summarization
-- [ ] Add topic viewer to UI - Graph visualization? Word cloud?
+- [ ] Add topic viewer to UI
+  - [x] Initial graph visualization
 - [ ] Manual tag editing
 - [ ] Memory deletion from UI
 - [ ] Memory locks in UI - User marks a memory/topic/conversation as permanent and not a candidate for deletion and/or summarization
@@ -72,7 +74,9 @@ Goal: Sidestep hallucinations by trimming and summarizing memories
 
 Goal: Agency and passive memory management
 
+- [x] Add automatic web search functionality
 - [ ] Enable Valac to trim its own memory autonomously - consider memory importance based on frequency of access & relation to other topics
+- [ ]
 - [ ] Integrate LangChain plugins
 - [ ] User selectable LLM models for both the core LLM (used for prompt generation) and auxiliary LLM (used for tag generation)
 

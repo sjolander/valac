@@ -1,0 +1,40 @@
+@use '../../styles/colors' as *;
+
+.colorSwatch {
+    display: flex;
+    flex-wrap: wrap;
+    height: 100px;
+    background: $color-background;
+}
+
+.color {
+    width: 50px;
+    height: 50px;
+    margin: 5px;
+    border: 1px solid $color-border;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px $color-hover;
+}
+
+.lightText {
+    color: $color-text-light;
+}
+.darkText {
+    color: $color-text-dark;
+}
+
+.purple {
+    background-color: $color-purple;
+}
+
+.red {
+    background-color: $color-red;
+}
+
+.orange {
+    background-color: $color-orange;
+}
+
+.green {
+    background-color: $color-green;
+}

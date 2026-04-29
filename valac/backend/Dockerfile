@@ -1,13 +1,15 @@
-FROM node:18-alpine
+FROM node:20
 
-WORKDIR /app
+WORKDIR /usr/src/app
 
-COPY package*.json ./
+COPY ["package.json", "package-lock.json*", "npm-shrinkwrap.json*", "./"]
+RUN npm install -g nodemon
 RUN npm install
 
-COPY tsconfig.json ./
-COPY src ./src
+COPY . .
 
-RUN npm run build
+EXPOSE 3000
+EXPOSE 9229
 
-CMD ["npm", "start"]
+# Nodemon will use nodemon.json
+CMD ["npx", "nodemon"]

@@ -1,0 +1,43 @@
+@use 'sass:color';
+@use './accessibility';
+
+@mixin button-theme($base-color, $hover-lightness: 15%) {
+  $text-color: accessibility.auto-text-color($base-color);
+
+  position: relative;
+  overflow: hidden;
+  background-color: $base-color;
+  color: $text-color;
+  border: 1px solid color.scale($base-color, $lightness: -10%);
+  border-radius: 6px;
+  padding: 0.6rem 1.4rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.25s ease-in-out;
+
+  // ripple overlay
+  &::before {
+    content: '';
+    position: absolute;
+    left: var(--ripple-x);
+    top: var(--ripple-y);
+    width: 0;
+    height: 0;
+    background-color: color.scale($base-color, $lightness: $hover-lightness);
+    border-radius: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    transition: transform 0.25s ease-in-out;
+    z-index: 0;
+  }
+
+  > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  &:hover::before {
+    width: 300%;  // extra large so it covers corners
+    height: 300%;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}

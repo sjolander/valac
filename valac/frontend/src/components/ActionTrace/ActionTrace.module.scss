@@ -1,0 +1,70 @@
+.trace {
+  margin: 0.5rem 0 0.25rem 0;
+  border: 1px solid var(--border, #333);
+  border-radius: 8px;
+  background: var(--surface-alt, #1a1a2e);
+  font-size: 0.8rem;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  align-self: flex-start;
+  max-width: 480px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.4rem 0.75rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted, #888);
+  text-align: left;
+
+  &:hover {
+    color: var(--text, #ccc);
+  }
+}
+
+.icon {
+  font-size: 0.7rem;
+  flex-shrink: 0;
+}
+
+.summary {
+  font-style: italic;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0 0.75rem 0.5rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  color: var(--text-muted, #999);
+  line-height: 1.4;
+}
+
+.dot {
+  flex-shrink: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent, #6c63ff);
+  position: relative;
+  top: -1px;
+}
+
+.collapsed {
+  .header {
+    padding: 0.3rem 0.75rem;
+  }
+}
