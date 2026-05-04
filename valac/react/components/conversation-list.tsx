@@ -25,11 +25,25 @@ export function ConversationList({
   onSelect,
   onNewChat,
 }: ConversationListProps) {
+  const handleWipe = async () => {
+    const confirm1 = window.confirm(
+      'This will DELETE ALL DATA (messages, memory, topics). Continue?',
+    );
+    if (!confirm1) return;
+    const confirm2 = window.confirm(
+      'Last warning. This cannot be undone. Proceed?',
+    );
+    if (!confirm2) return;
+    await fetch('http://localhost:8000/admin/wipe-all', {
+      method: 'POST',
+    });
+    window.location.reload();
+  };
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border/50 p-4">
-        <h2 className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
+        <h2 className="text-lg font-medium tracking-wide text-muted-foreground">
           Conversations
         </h2>
         <Button
@@ -101,6 +115,21 @@ export function ConversationList({
           ))}
         </div>
       </div>
+      <button
+        onClick={handleWipe}
+        style={{
+          marginLeft: 'auto',
+          background: 'red',
+          color: 'white',
+          padding: '6px 10px',
+          borderRadius: 6,
+          border: 'none',
+          margin: '10px',
+          cursor: 'pointer',
+        }}
+      >
+        Wipe DB
+      </button>
     </div>
   );
 }

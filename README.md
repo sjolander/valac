@@ -32,7 +32,7 @@ graph TD;
     style VDB fill:#fff3e0
 ```
 
-## Current Status: Functional for extended personalized conversations
+## Current Status: Functional with memories across conversation boundaries with visualizations for topics
 
 ## ✅ Phase 1: Proof of Concept
 
@@ -52,19 +52,28 @@ Goal: A self-contained, local system that runs end-to-end.
 
 ## 🔜 Phase 2: Memory Management
 
-Goal: Sidestep hallucinations by trimming and summarizing memories
+Goal: Display memories as conversations and topics/tags and allow
 
 - [x] Add time to memories
 - [x] Streaming response in UI
 - [x] Show UI indication of memory updates
 - [x] Add tags/topics to memories
 - [x] Track conversation/session IDs
-- [ ] Allow ability for user to spawn multiple threads based from the same conversation.
-- [ ] Memory summarization
+- [x] Port backend to Python
+- [ ] Personalization memories
+  - [ ] Detect and store
+  - [ ] Display as gold nodes in graph view
+- [ ] Allow ability for user to spawn multiple threads based from the same conversation. (Do we need this when Valac has cross-conversation memory?)
+- [ ] Memory summarization?
 - [ ] Add topic viewer to UI
   - [x] Initial graph visualization
-- [ ] Manual tag editing
+  - [ ] Highlight tags connected to current conversation
+  - [ ] Allow separate graphs for user vs. general memories
+- [ ] Manual tag editing?
 - [ ] Memory deletion from UI
+  - [x] Complete memory wipe
+  - [ ] Delete tag
+  - [ ] Delete conversation
 - [ ] Memory locks in UI - User marks a memory/topic/conversation as permanent and not a candidate for deletion and/or summarization
 - [ ] DB size limit control in UI
 
@@ -76,7 +85,6 @@ Goal: Agency and passive memory management
 
 - [x] Add automatic web search functionality
 - [ ] Enable Valac to trim its own memory autonomously - consider memory importance based on frequency of access & relation to other topics
-- [ ]
 - [ ] Integrate LangChain plugins
 - [ ] User selectable LLM models for both the core LLM (used for prompt generation) and auxiliary LLM (used for tag generation)
 
@@ -86,15 +94,13 @@ Goal: Agency and passive memory management
 
 Goal: Cloud-based deployment for quick demonstrations
 
-- [ ] Deploy backend (Render, Fly.io, etc.)
-- [ ] Deploy frontend (Vercel, Netlify, etc.)
+- [ ] Reconfigure for AWS
 - [ ] Add authentication, rate limiting, logging
 - [ ] Improve error handling and user feedback
-- [ ] Seed with memories
 
 ## Design Philosophy
 
-Valac explores what a personal, local-first AI assistant could look like — one with long-term memory, contextual awareness, and plugin-based actionability. The project is designed with future capabilities in mind:
+Valac explores what a personal, local-first AI assistant could look like — one with long-term memory, contextual awareness, and plugin-based actions. The project is designed with future capabilities in mind:
 
 - Conversational memory that evolves over time
 - Plugin system enabling agentic behaviors ("call a taxi", "remind me", "search the web")

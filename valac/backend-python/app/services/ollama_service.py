@@ -81,7 +81,7 @@ async def complete(prompt: str, system_prompt: str = "") -> str:
     if system_prompt:
         payload["system"] = system_prompt
  
-    async with httpx.AsyncClient(timeout=60.0) as client:
+    async with httpx.AsyncClient(timeout=180.0) as client:
         response = await client.post(f"{OLLAMA_HOST}/api/generate", json=payload)
         response.raise_for_status()
         data = response.json()

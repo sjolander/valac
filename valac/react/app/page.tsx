@@ -3,8 +3,8 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { ChatView, type Message } from '@/components/chat-view';
 import { ConversationList } from '@/components/conversation-list';
-import { TopicsPanel, type Topic } from '@/components/topics-panel';
-import { TopicGraph } from '@/components/topic-graph';
+import { TagsPanel, type Tag } from '@/components/topics-panel';
+import { TagGraph } from '@/components/topic-graph';
 import { cn } from '@/lib/utils';
 import { Menu, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -26,7 +26,7 @@ interface ConversationMeta {
 
 export default function Home() {
   const [conversations, setConversations] = useState<ConversationMeta[]>([]);
-  const [topics, setTopics] = useState<Topic[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [graphExpanded, setGraphExpanded] = useState(false);
@@ -49,21 +49,29 @@ export default function Home() {
     }
   }, []);
 
-  // ── Fetch topics ──────────────────────────────────────────────────────────
-  const fetchTopics = useCallback(async () => {
+  // ── Fetch tags ──────────────────────────────────────────────────────────
+  const fetchTags = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/topics`);
+      const res = await fetch(`${API_URL}/tags`);
       const data = await res.json();
-      setTopics(data);
+      setTags(data);
     } catch (e) {
-      console.error('Failed to fetch topics:', e);
+      console.error('Failed to fetch tags:', e);
     }
   }, []);
 
   useEffect(() => {
     fetchConversations();
-    fetchTopics();
-  }, [fetchConversations, fetchTopics]);
+    fetchTags();
+  }, [fetchConversations, fetchTags]);
+
+  useEffect(() => {
+    const es = new EventSource(`${API_URL}/events`);
+    es.onmessage = (e) => {
+      if (e.data == 'tags_updated') fetchTags();
+    };
+    return () => es.close();
+  }, [fetchTags]);
 
   // ── Select a past conversation ────────────────────────────────────────────
   const handleSelect = useCallback(
@@ -138,7 +146,7 @@ export default function Home() {
       },
       onStatus: setStatusLine,
       onTags: (_tags) => {
-        /* reserved for topic panel */
+        /* reserved for tag panel */
       },
       onError: (error) => {
         setMessages((prev) =>
@@ -151,12 +159,9 @@ export default function Home() {
         setIsLoading(false);
         setStatusLine('');
         fetchConversations();
-        setTimeout(() => fetchTopics(), 4000); // TODO: upgrade to server push for this
       },
     });
-  }, [input, isLoading, activeId, fetchConversations, fetchTopics]);
-
-  const handleTopicClick = useCallback((_topic: Topic) => {}, []);
+  }, [input, isLoading, activeId, fetchConversations, fetchTags]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -244,16 +249,13 @@ export default function Home() {
           )}
         >
           {graphExpanded ? (
-            <TopicGraph
-              topics={topics}
-              onClose={() => setGraphExpanded(false)}
-            />
+            <TagGraph tags={tags} onClose={() => setGraphExpanded(false)} />
           ) : (
-            <TopicsPanel
-              topics={topics}
+            <TagsPanel
+              tags={tags}
               isExpanded={graphExpanded}
               onToggleExpand={() => setGraphExpanded(true)}
-              onTopicClick={() => setGraphExpanded(true)}
+              onTagClick={() => setGraphExpanded(true)}
             />
           )}
         </div>

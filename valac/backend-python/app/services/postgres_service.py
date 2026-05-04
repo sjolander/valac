@@ -94,6 +94,12 @@ async def init_db() -> None:
         """)
     logger.info("Postgres tables initialized")
 
+async def wipe_postgres():
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute("TRUNCATE TABLE messages CASCADE")
+        await conn.execute("TRUNCATE TABLE topic_chunks CASCADE")
+        await conn.execute("TRUNCATE TABLE conversations CASCADE")
 
 # ---------------------------------------------------------------------------
 # Conversations
@@ -140,7 +146,8 @@ async def store_messages(user_record: MessageRecord, assistant_record: MessageRe
                     INSERT INTO messages
                         (message_id, conversation_id, turn_index, role, content, created_at)
                     VALUES ($1, $2, $3, $4, $5, $6)
-                    ON CONFLICT (conversation_id, turn_index) DO NOTHING
+                    ON CONFLICT (conversation_id, turn_index) DO UPDATE SET
+                        content = EXCLUDED.content
                 """,
                     record.message_id,
                     record.conversation_id,

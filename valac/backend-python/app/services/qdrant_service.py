@@ -1,4 +1,6 @@
+from datetime import datetime, timezone
 import logging
+import math
 import os
 
 from qdrant_client import AsyncQdrantClient
@@ -21,6 +23,7 @@ QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
 QDRANT_PORT = int(os.getenv("QDRANT_PORT", "6333"))
 COLLECTION   = "memories"
 TOPIC_CHUNKS_COLLECTION = "topic_chunks"
+MESSAGE_CHUNKS_COLLECTION = "message_chunks"
 
 _client: AsyncQdrantClient | None = None
 
@@ -31,6 +34,12 @@ def get_client() -> AsyncQdrantClient:
         _client = AsyncQdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
     return _client
 
+async def wipe_qdrant():
+    client = get_client()
+    collections = await client.get_collections()
+
+    for c in collections.collections:
+        await client.delete_collection(c.name)
 
 async def init_collection() -> None:
     """
@@ -55,6 +64,18 @@ async def init_collection() -> None:
         logger.info("Created payload indexes")
     else:
         logger.info(f"Qdrant collection '{COLLECTION}' already exists")
+
+async def init_message_chunks_collection():
+    client = get_client()
+    existing = await client.get_collections()
+    names    = [c.name for c in existing.collections]
+
+    if MESSAGE_CHUNKS_COLLECTION not in names:
+        await client.recreate_collection(
+            collection_name="message_chunks",
+            vectors_config=VectorParams(size=EMBEDDING_DIM, distance=Distance.COSINE),
+        )
+        logger.info(f"Created Qdrant collection '{MESSAGE_CHUNKS_COLLECTION}")
 
 async def init_topic_chunks_collection() -> None:
     """
@@ -84,7 +105,27 @@ async def init_topic_chunks_collection() -> None:
         logger.info(f"Created payload indexes on '{TOPIC_CHUNKS_COLLECTION}'")
     else:
         logger.info(f"Qdrant collection '{TOPIC_CHUNKS_COLLECTION}' already exists")
- 
+
+async def upsert_message_chunk(point: dict):
+    client = get_client()
+    await client.upsert(
+        collection_name="message_chunks",
+        points=[point]
+    )
+
+async def search_message_chunks(vector: list[float], limit: int = 5):
+    client = get_client()
+    results = await client.query_points(
+        collection_name="message_chunks",
+        query=vector,
+        limit=limit,
+        with_payload=True
+    )
+    for point in results.points:
+        if not isinstance(point.payload, dict):
+            point.payload = dict(point.payload)
+    return results.points
+
 async def update_topic_chunk(
     chunk_id: str,
     new_vector: list[float],
@@ -219,3 +260,79 @@ async def get_topic_chunk_point(chunk_id: str) -> _ChunkPoint | None:
         vector=list(point.vector) if point.vector else [],
         payload=dict(point.payload) if point.payload else {},
     )
+
+async def get_all_tags(limit: int = 1000) -> list[dict]:
+    """
+    Scroll all memories from Qdrant, build a tag co-occurrence graph.
+    Returns nodes (unique tags) and connections (co-occurring tags).
+    """
+    client = get_client()
+    now = datetime.now(timezone.utc)
+
+    # Scroll all memory points
+    points = []
+    next_offset = None
+    while True:
+        result, next_offset = await client.scroll(
+            collection_name=COLLECTION,
+            offset=next_offset,
+            limit=100,
+            with_payload=True,
+            with_vectors=False,
+        )
+        points.extend(result)
+        logger.debug(f"[get_all_tags] scroll batch: {len(result)} points, next_offset={next_offset}")
+        if next_offset is None:
+            break
+
+    logger.debug(f"[get_all_tags] total points scrolled: {len(points)}")
+
+    # Build per-tag metadata: latest timestamp, set of co-occurring tags
+    tag_latest:  dict[str, datetime] = {}
+    tag_cooccur: dict[str, set[str]] = {}
+
+    for point in points:
+        payload = dict(point.payload or {})
+        tags = payload.get("tags", [])
+        logger.debug(f"[get_all_tags] point {point.id}: tags={tags}")
+        if not tags:
+            continue
+
+        # Parse timestamp
+        raw_ts = payload.get("created_at")
+        try:
+            ts = datetime.fromtimestamp(raw_ts / 1000, tz=timezone.utc) if isinstance(raw_ts, (int, float)) else datetime.fromisoformat(raw_ts).replace(tzinfo=timezone.utc)
+        except Exception:
+            ts = now
+
+        for tag in tags:
+            tag = tag.lower().strip()
+            if not tag:
+                continue
+            # Track most recent memory for this tag
+            if tag not in tag_latest or ts > tag_latest[tag]:
+                tag_latest[tag] = ts
+            # Track co-occurring tags
+            if tag not in tag_cooccur:
+                tag_cooccur[tag] = set()
+            for other in tags:
+                other = other.lower().strip()
+                if other and other != tag:
+                    tag_cooccur[tag].add(other)
+
+    # Build result
+    result = []
+    for tag, latest_ts in tag_latest.items():
+        age_days  = (now - latest_ts).total_seconds() / 86400
+        relevance = math.pow(0.5, age_days / 90)
+        result.append({
+            "id":          tag,
+            "label":       tag,
+            "connections": list(tag_cooccur.get(tag, set())),
+            "relevance":   round(min(1.0, max(0.05, relevance)), 3),
+            "timestamp":   latest_ts.isoformat(),
+        })
+
+    # Most recent first
+    result.sort(key=lambda x: x["timestamp"], reverse=True)
+    return result[:limit]

@@ -1,29 +1,29 @@
-"use client";
+'use client';
 
-import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, Network } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { cn } from '@/lib/utils';
+import { ChevronLeft, ChevronRight, Network } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
-export interface Topic {
+export interface Tag {
   id: string;
   label: string;
   connections: string[];
   relevance: number;
 }
 
-interface TopicsPanelProps {
-  topics: Topic[];
+interface TagsPanelProps {
+  tags: Tag[];
   isExpanded: boolean;
   onToggleExpand: () => void;
-  onTopicClick: (topic: Topic) => void;
+  onTagClick: (tag: Tag) => void;
 }
 
-export function TopicsPanel({
-  topics,
+export function TagsPanel({
+  tags,
   isExpanded,
   onToggleExpand,
-  onTopicClick,
-}: TopicsPanelProps) {
+  onTagClick: onTagClick,
+}: TagsPanelProps) {
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
@@ -42,44 +42,44 @@ export function TopicsPanel({
             )}
           </Button>
           <h2 className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
-            Topics
+            Tags
           </h2>
         </div>
         <div className="flex items-center gap-1 text-xs text-muted-foreground/60">
           <Network className="h-3 w-3" />
-          <span>{topics.length}</span>
+          <span>{tags.length}</span>
         </div>
       </div>
 
-      {/* Topics List */}
+      {/* Tags List */}
       <div className="flex-1 overflow-y-auto p-3">
         <div className="space-y-2">
-          {topics.map((topic) => (
+          {tags.map((tag) => (
             <button
-              key={topic.id}
-              onClick={() => onTopicClick(topic)}
+              key={tag.id}
+              onClick={() => onTagClick(tag)}
               className={cn(
-                "w-full rounded-xl p-3 text-left transition-all duration-200",
-                "border border-transparent hover:border-primary/30",
-                "bg-secondary/50 hover:bg-secondary",
-                "hover:shadow-[0_0_15px_var(--glow)]",
-                "group"
+                'w-full rounded-xl p-3 text-left transition-all duration-200',
+                'border border-transparent hover:border-primary/30',
+                'bg-secondary/50 hover:bg-secondary',
+                'hover:shadow-[0_0_15px_var(--glow)]',
+                'group',
               )}
             >
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
-                  {topic.label}
+                  {tag.label}
                 </span>
                 <div
                   className="h-2 w-2 rounded-full bg-primary/50"
                   style={{
-                    opacity: topic.relevance,
-                    boxShadow: `0 0 ${topic.relevance * 10}px var(--glow)`,
+                    opacity: tag.relevance,
+                    boxShadow: `0 0 ${tag.relevance * 10}px var(--glow)`,
                   }}
                 />
               </div>
               <div className="mt-1.5 flex flex-wrap gap-1">
-                {topic.connections.slice(0, 3).map((conn, i) => (
+                {tag.connections.slice(0, 3).map((conn, i) => (
                   <span
                     key={i}
                     className="inline-flex items-center rounded-md bg-muted/50 px-1.5 py-0.5 text-[10px] text-muted-foreground"
@@ -87,9 +87,9 @@ export function TopicsPanel({
                     {conn}
                   </span>
                 ))}
-                {topic.connections.length > 3 && (
+                {tag.connections.length > 3 && (
                   <span className="inline-flex items-center rounded-md bg-muted/50 px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                    +{topic.connections.length - 3}
+                    +{tag.connections.length - 3}
                   </span>
                 )}
               </div>

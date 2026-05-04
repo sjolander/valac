@@ -5,22 +5,6 @@ volumes:
 services:
   # space to
   # avoid that popup
-  frontend:
-    build:
-      context: ./frontend
-    container_name: frontend
-    ports:
-      - "5173:5173"
-    environment:
-      - NODE_ENV=development
-      - VITE_API_URL=http://localhost:8000
-    networks:
-      - valac-net
-    volumes:
-      - ./frontend:/usr/src/app
-      - /usr/src/app/node_modules
-    working_dir: /usr/src/app
-    command: [ "npm", "run", "dev", "--", "--host", "0.0.0.0" ]
   react:
     build:
       context: ./react
@@ -37,22 +21,6 @@ services:
       - /usr/src/app/node_modules
     working_dir: /usr/src/app
     command: [ "npm", "run", "dev" ]
-  # backend:
-  #   build:
-  #     context: ./backend
-  #   ports:
-  #     - '9229:9229' # for debugger
-  #     - '3000:3000'
-  #   environment:
-  #     - NODE_ENV=development
-  #     # - OLLAMA_HOST=http://ollama:11434 - Docker container Ollama
-  #     - OLLAMA_HOST=http://host.docker.internal:11434 # Host machine Ollama
-  #   container_name: backend
-  #   networks:
-  #     - valac-net
-  #   volumes:
-  #     - ./backend:/usr/src/app
-  #   command: ['npx', 'nodemon']
   python-backend:
     build:
       context: ./backend-python
@@ -124,16 +92,6 @@ services:
       - valac-net
     environment:
       QDRANT_LOGLEVEL: debug
-  # chromadb:
-  #   build:
-  #     context: ./chromadb
-  #   container_name: chromadb
-  #   ports:
-  #     - '8000:8000'
-  #   volumes:
-  #     - ./data/chroma:/chroma
-  #   networks:
-  #     - valac-net
 
   postgres:
     image: postgres:16-alpine

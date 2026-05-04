@@ -1,8 +1,0 @@
-.appView {
-  display: flex;
-  width: 100vw;
-}
-
-.appView :nth-child(2) {
-  flex: 1 2 75%;
-}

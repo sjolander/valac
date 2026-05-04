@@ -3,8 +3,8 @@ import os
 
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "all-minilm")
-EMBEDDING_DIM = 384  # all-minilm is 384-dim, not 768
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
+EMBEDDING_DIM = 768
 
 
 async def get_embedding(text: str) -> list[float]:

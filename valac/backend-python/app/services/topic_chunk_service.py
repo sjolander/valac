@@ -135,10 +135,10 @@ def _chunk_record_from_stored(stored: StoredTopicChunk, now: datetime) -> TopicC
 # ---------------------------------------------------------------------------
 
 async def process_turn_post_response(
-    user_message: str,
-    assistant_message: str,
     conversation_id: str,
     query_vector: list[float],
+    user_record: MessageRecord,
+    assistant_record: MessageRecord,
 ) -> None:
     """
     Persist a completed exchange and update the topic-chunk layer.
@@ -150,47 +150,16 @@ async def process_turn_post_response(
         now    = datetime.now(timezone.utc)
         now_ms = _to_ms(now)
 
-        # ── 1. Ensure conversation row ───────────────────────────────────
-        await ensure_conversation(conversation_id)
-
-        # ── 2. Allocate turn indices ─────────────────────────────────────
-        pool = await get_pool()
-        async with pool.acquire() as conn:
-            user_turn_idx = await get_next_turn_index(conversation_id, conn)
-        assistant_turn_idx = user_turn_idx + 1
-
-        # ── 3. Persist messages ──────────────────────────────────────────
-        user_rec = MessageRecord(
-            conversation_id=conversation_id,
-            turn_index=user_turn_idx,
-            role="user",
-            content=user_message,
-            created_at=now,
-        )
-        asst_rec = MessageRecord(
-            conversation_id=conversation_id,
-            turn_index=assistant_turn_idx,
-            role="assistant",
-            content=assistant_message,
-            created_at=now,
-        )
-        await store_messages(user_rec, asst_rec)
-
-        if user_turn_idx == 0:
-            raw_title = user_message[:60].strip()
-            title     = raw_title if len(user_message) <= 60 else raw_title + "..."
-            await set_conversation_title(conversation_id, title)
-
-        # ── 4. Fetch current chunk ───────────────────────────────────────
+        # ── 1. Fetch current chunk ───────────────────────────────────────
         current_pg = await get_latest_chunk(conversation_id)
 
         if current_pg is None:
             # First exchange in this conversation — create a fresh chunk
-            extracted = await _summarize_turns([user_rec, asst_rec])
+            extracted = await _summarize_turns([user_record, assistant_record])
             stored    = await _build_stored_chunk(
                 extracted, conversation_id,
-                turn_start=user_turn_idx,
-                turn_end=assistant_turn_idx,
+                turn_start=user_record.turn_index,
+                turn_end=assistant_record.turn_index,
                 timestamp_start_ms=now_ms,
                 timestamp_end_ms=now_ms,
             )
@@ -199,7 +168,7 @@ async def process_turn_post_response(
             logger.debug(f"[topic_chunk] Created '{stored.payload.topic_label}' for {conversation_id}")
             return
 
-        # ── 5. Check topic drift ─────────────────────────────────────────
+        # ── 2. Check topic drift ─────────────────────────────────────────
         chunk_point = await get_topic_chunk_point(current_pg.chunk_id)
 
         if chunk_point is not None and chunk_point.vector:
@@ -209,11 +178,11 @@ async def process_turn_post_response(
         logger.debug(f"[topic_chunk] Similarity to current chunk: {similarity:.3f}")
 
         if similarity >= TOPIC_DRIFT_THRESHOLD:
-            # ── 6a. Same topic — extend the chunk ────────────────────────
+            # ── 3a. Same topic — extend the chunk ────────────────────────
             all_turns = await get_messages_in_range(
                 conversation_id,
                 current_pg.turn_start,
-                assistant_turn_idx,
+                assistant_record.turn_index,
             )
             extracted  = await _summarize_turns(all_turns)
             new_vector = await get_embedding(extracted.summary)
@@ -224,18 +193,18 @@ async def process_turn_post_response(
                 updates={
                     "topic_label":   extracted.topic_label,
                     "summary":       extracted.summary,
-                    "turn_end":      assistant_turn_idx,
+                    "turn_end":      assistant_record.turn_index,
                     "timestamp_end": now_ms,
                 },
             )
 
         else:
-            # ── 6b. Topic drift — start a new chunk ──────────────────────
-            extracted = await _summarize_turns([user_rec, asst_rec])
+            # ── 3b. Topic drift — start a new chunk ──────────────────────
+            extracted = await _summarize_turns([user_record, assistant_record])
             stored    = await _build_stored_chunk(
                 extracted, conversation_id,
-                turn_start=user_turn_idx,
-                turn_end=assistant_turn_idx,
+                turn_start=user_record.turn_index,
+                turn_end=assistant_record.turn_index,
                 timestamp_start_ms=now_ms,
                 timestamp_end_ms=now_ms,
             )

@@ -10,24 +10,33 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:8b")
 logger = logging.getLogger(__name__)
 
 GATE_PROMPT = """\
-Does this question require current, real-time, or recently updated information \
-to answer accurately? This includes: current events, news, prices, sports scores, \
-weather, recent software releases, or anything that changes frequently.
+Analyze this message and return a JSON object with exactly these fields:
 
-Return only a JSON object with two fields:
-- "needs_search": true or false
-- "query": if needs_search is true, the best search query to use (concise, 5-8 words). \
-  If false, set to null.
+- "needs_search": true if the question requires current, real-time, or recently \
+updated information (news, prices, scores, weather, recent releases, anything \
+that changes frequently). false otherwise.
+- "search_query": if needs_search is true, the best search query to use (5-8 words). \
+null if false.
+- "needs_verbatim": true if an accurate answer would benefit from seeing the exact \
+wording of past exchanges (e.g. the user is asking about something very specific \
+they said before, or precision matters). false if a summary would suffice.
+- "is_personal": true if the message reveals personal information about the user \
+(facts, preferences, constraints, habits, opinions) OR if the message references \
+or implies something personal about the user that would require retrieving stored \
+personal context to answer well. false otherwise.
+- "is_complex": true if answering well requires deep context, multi-step reasoning, \
+or broad memory retrieval. false for simple factual questions, greetings, or \
+throwaway queries that need no memory at all.
 
-Question: {prompt}
+Message: {prompt}
 
-Return only the JSON object."""
+Return only the JSON object. No markdown, no explanation."""
 
 
-async def should_search(prompt: str) -> tuple[bool, str | None]:
+async def should_search(prompt: str) -> tuple[bool, str | None, bool, bool, bool]:
     """
-    Returns (needs_search, query_string).
-    Fast call — uses no_think and stream=False.
+    Returns (needs_search, search_query, needs_verbatim, is_personal, is_complex).
+    Runs concurrently with embedding in /ask — keep fast.
     """
     try:
         async with httpx.AsyncClient(timeout=30) as client:
@@ -55,18 +64,24 @@ async def should_search(prompt: str) -> tuple[bool, str | None]:
         raw = re.sub(r"^```(?:json)?\s*", "", raw)
         raw = re.sub(r"\s*```$", "", raw)
 
-        # Find first JSON object in response
         match = re.search(r"\{.*?\}", raw, re.DOTALL)
         if not match:
-            logger.debug(f"Search gate raw response: {raw!r}")
-            return False, None
+            logger.debug(f"Gate raw response: {raw!r}")
+            return False, None, False, False, True  # safe defaults
 
-        parsed = json.loads(match.group())
-        needs  = bool(parsed.get("needs_search", False))
-        query  = parsed.get("query") if needs else None
-        logger.debug(f"Search gate: needs_search={needs}, query={query!r}")
-        return needs, query
+        parsed       = json.loads(match.group())
+        needs_search = bool(parsed.get("needs_search", False))
+        search_query = parsed.get("search_query") if needs_search else None
+        needs_verbatim = bool(parsed.get("needs_verbatim", False))
+        is_personal  = bool(parsed.get("is_personal", False))
+        is_complex   = bool(parsed.get("is_complex", True))
+
+        logger.debug(
+            f"Gate: needs_search={needs_search}, needs_verbatim={needs_verbatim}, "
+            f"is_personal={is_personal}, is_complex={is_complex}, query={search_query!r}"
+        )
+        return needs_search, search_query, needs_verbatim, is_personal, is_complex
 
     except Exception as e:
-        logger.warning(f"Search gate failed ({type(e).__name__}): {e}")
-        return False, None
+        logger.warning(f"Gate failed ({type(e).__name__}): {e}")
+        return False, None, False, False, True  # fail open on is_complex
