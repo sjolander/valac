@@ -32,7 +32,13 @@ graph TD;
     style VDB fill:#fff3e0
 ```
 
-## Current Status: Functional with memories across conversation boundaries with visualizations for topics
+## Current Status: Functional with memories across conversation boundaries with visualizations for topics and personal data
+
+**Known Issues**
+
+- Post-response processing can overwhelm LLM can cause failed writes -
+  Need to use lighter LLM for smaller processes like topic updates; Will also push post-response tasks to workers through some kind of
+  durable queue like Redis with Celery.
 
 ## ✅ Phase 1: Proof of Concept
 
@@ -50,7 +56,7 @@ Goal: A self-contained, local system that runs end-to-end.
 
 ---
 
-## 🔜 Phase 2: Memory Management
+## Phase 2: Memory Management
 
 Goal: Display memories as conversations and topics/tags and allow
 
@@ -60,10 +66,10 @@ Goal: Display memories as conversations and topics/tags and allow
 - [x] Add tags/topics to memories
 - [x] Track conversation/session IDs
 - [x] Port backend to Python
-- [ ] Personalization memories
-  - [ ] Detect and store
-  - [ ] Display as gold nodes in graph view
-- [ ] Allow ability for user to spawn multiple threads based from the same conversation. (Do we need this when Valac has cross-conversation memory?)
+- [x] Personalization memories
+  - [x] Detect and store
+  - [x] Display as gold nodes in graph view
+- [ ] Allow ability for user to spawn multiple threads off of the same conversation. (Do we need this when Valac has cross-conversation memory?)
 - [ ] Memory summarization?
 - [ ] Add topic viewer to UI
   - [x] Initial graph visualization
@@ -76,21 +82,24 @@ Goal: Display memories as conversations and topics/tags and allow
   - [ ] Delete conversation
 - [ ] Memory locks in UI - User marks a memory/topic/conversation as permanent and not a candidate for deletion and/or summarization
 - [ ] DB size limit control in UI
+- [x] Add automatic web search functionality
+- [ ] Display web links for sources
+- [ ] Durable post-response worker queue
 
 ---
 
-## 🔜 Phase 3: Agency and Autonomous Behavior
+## Phase 3: Agency and Autonomous Behavior
 
 Goal: Agency and passive memory management
 
-- [x] Add automatic web search functionality
+- [ ] Investigate MCP
 - [ ] Enable Valac to trim its own memory autonomously - consider memory importance based on frequency of access & relation to other topics
 - [ ] Integrate LangChain plugins
 - [ ] User selectable LLM models for both the core LLM (used for prompt generation) and auxiliary LLM (used for tag generation)
 
 ---
 
-## 🎯 Phase 4: Hosting, Deployment, and UX Polish
+## Phase 4: Hosting, Deployment, and UX Polish
 
 Goal: Cloud-based deployment for quick demonstrations
 

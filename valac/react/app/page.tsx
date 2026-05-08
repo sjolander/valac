@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { Menu, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { streamAsk } from '@/lib/api';
+import { usePersonalFacts } from '@/hooks/use-personal-facts';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
 const USER_ID = 'default-user';
@@ -38,23 +39,24 @@ export default function Home() {
 
   const conversationId = useRef<string>(generateId());
 
-  // ── Fetch conversation list ───────────────────────────────────────────────
+  const { facts: personalFacts, refresh: refreshFacts } =
+    usePersonalFacts(USER_ID);
+
+  // ── Data fetching ─────────────────────────────────────────────────────────
+
   const fetchConversations = useCallback(async () => {
     try {
       const res = await fetch(`${API_URL}/conversations`);
-      const data = await res.json();
-      setConversations(data);
+      setConversations(await res.json());
     } catch (e) {
       console.error('Failed to fetch conversations:', e);
     }
   }, []);
 
-  // ── Fetch tags ──────────────────────────────────────────────────────────
   const fetchTags = useCallback(async () => {
     try {
       const res = await fetch(`${API_URL}/tags`);
-      const data = await res.json();
-      setTags(data);
+      setTags(await res.json());
     } catch (e) {
       console.error('Failed to fetch tags:', e);
     }
@@ -65,15 +67,20 @@ export default function Home() {
     fetchTags();
   }, [fetchConversations, fetchTags]);
 
+  // ── SSE — refresh both tags and personal facts when memory settles ────────
   useEffect(() => {
     const es = new EventSource(`${API_URL}/events`);
     es.onmessage = (e) => {
-      if (e.data == 'tags_updated') fetchTags();
+      if (e.data === 'tags_updated') {
+        fetchTags();
+        refreshFacts();
+      }
     };
     return () => es.close();
-  }, [fetchTags]);
+  }, [fetchTags, refreshFacts]);
 
-  // ── Select a past conversation ────────────────────────────────────────────
+  // ── Conversation management ───────────────────────────────────────────────
+
   const handleSelect = useCallback(
     async (id: string) => {
       if (id === activeId) return;
@@ -81,7 +88,6 @@ export default function Home() {
       conversationId.current = id;
       setMessages([]);
       setStatusLine('');
-
       try {
         const res = await fetch(`${API_URL}/conversations/${id}/messages`);
         const data = await res.json();
@@ -93,25 +99,22 @@ export default function Home() {
     [activeId],
   );
 
-  // ── New conversation ──────────────────────────────────────────────────────
   const handleNewChat = useCallback(() => {
-    const newId = generateId();
-    conversationId.current = newId;
+    conversationId.current = generateId();
     setActiveId(null);
     setMessages([]);
     setStatusLine('');
   }, []);
 
-  // ── Send message ──────────────────────────────────────────────────────────
+  // ── Send ──────────────────────────────────────────────────────────────────
+
   const handleSend = useCallback(async () => {
     const prompt = input.trim();
     if (!prompt || isLoading) return;
 
-    if (!activeId) {
-      setActiveId(conversationId.current);
-    }
+    if (!activeId) setActiveId(conversationId.current);
 
-    const userMessage: Message = {
+    const userMsg: Message = {
       id: generateId(),
       role: 'user',
       content: prompt,
@@ -121,7 +124,7 @@ export default function Home() {
       }),
     };
     const assistantId = generateId();
-    const assistantMessage: Message = {
+    const assistantMsg: Message = {
       id: assistantId,
       role: 'assistant',
       content: '',
@@ -131,37 +134,35 @@ export default function Home() {
       }),
     };
 
-    setMessages((prev) => [...prev, userMessage, assistantMessage]);
+    setMessages((prev) => [...prev, userMsg, assistantMsg]);
     setInput('');
     setIsLoading(true);
     setStatusLine('');
 
     await streamAsk(prompt, conversationId.current, USER_ID, {
-      onToken: (token) => {
+      onToken: (token) =>
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId ? { ...m, content: m.content + token } : m,
           ),
-        );
-      },
+        ),
       onStatus: setStatusLine,
-      onTags: (_tags) => {
-        /* reserved for tag panel */
-      },
-      onError: (error) => {
+      onTags: () => {},
+      onError: (error) =>
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId ? { ...m, content: `Error: ${error}` } : m,
           ),
-        );
-      },
+        ),
       onDone: () => {
         setIsLoading(false);
         setStatusLine('');
         fetchConversations();
       },
     });
-  }, [input, isLoading, activeId, fetchConversations, fetchTags]);
+  }, [input, isLoading, activeId, fetchConversations]);
+
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -249,7 +250,11 @@ export default function Home() {
           )}
         >
           {graphExpanded ? (
-            <TagGraph tags={tags} onClose={() => setGraphExpanded(false)} />
+            <TagGraph
+              tags={tags}
+              personalFacts={personalFacts}
+              onClose={() => setGraphExpanded(false)}
+            />
           ) : (
             <TagsPanel
               tags={tags}

@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 import logging
 import math
 import os
+import uuid
 
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.models import (
@@ -15,7 +16,7 @@ from qdrant_client.models import (
 )
 
 from app.models import ExtractedMemory, MemorySearchResult, StoredMemory, StoredTopicChunk, TopicChunkPayload
-from app.services.embedding_service import EMBEDDING_DIM
+from app.services.embedding_service import EMBEDDING_DIM, get_embedding
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,7 @@ QDRANT_PORT = int(os.getenv("QDRANT_PORT", "6333"))
 COLLECTION   = "memories"
 TOPIC_CHUNKS_COLLECTION = "topic_chunks"
 MESSAGE_CHUNKS_COLLECTION = "message_chunks"
+TAGS_COLLECTION = "tags"
 
 _client: AsyncQdrantClient | None = None
 
@@ -105,6 +107,80 @@ async def init_topic_chunks_collection() -> None:
         logger.info(f"Created payload indexes on '{TOPIC_CHUNKS_COLLECTION}'")
     else:
         logger.info(f"Qdrant collection '{TOPIC_CHUNKS_COLLECTION}' already exists")
+
+async def init_tags_collection() -> None:
+    client = get_client()
+    existing = await client.get_collections()
+    names = [c.name for c in existing.collections]
+    is_new = TAGS_COLLECTION not in names
+
+    if is_new:
+        await client.create_collection(
+            collection_name=TAGS_COLLECTION,
+            vectors_config=VectorParams(size=EMBEDDING_DIM, distance=Distance.COSINE),
+        )
+        await client.create_payload_index(TAGS_COLLECTION, "label", PayloadSchemaType.KEYWORD)
+        logger.info(f"Created Qdrant collection '{TAGS_COLLECTION}' — backfilling from memories")
+        await _backfill_tags_from_memories()
+    else:
+        logger.info(f"Qdrant collection '{TAGS_COLLECTION}' already exists")
+
+
+async def _backfill_tags_from_memories() -> None:
+    """
+    On first creation of the tags collection, scroll all existing memories
+    and register every unique tag as canonical. Runs once at startup.
+    """
+    client = get_client()
+    seen:    set[str] = set()
+    next_offset = None
+
+    while True:
+        result, next_offset = await client.scroll(
+            collection_name=COLLECTION,
+            offset=next_offset,
+            limit=100,
+            with_payload=True,
+            with_vectors=False,
+        )
+        for point in result:
+            for tag in (point.payload or {}).get("tags", []):
+                tag = tag.lower().strip()
+                if tag and tag not in seen:
+                    seen.add(tag)
+                    vector = await get_embedding(tag)
+                    await upsert_canonical_tag(tag, vector)
+
+        if next_offset is None:
+            break
+
+    logger.info(f"[backfill] Registered {len(seen)} canonical tags")
+
+async def search_canonical_tag(vector: list[float], threshold: float = 0.82) -> str | None:
+    """Return the canonical tag label if a close match exists, else None."""
+    client = get_client()
+    results = await client.query_points(
+        collection_name=TAGS_COLLECTION,
+        query=vector,
+        limit=1,
+        score_threshold=threshold,
+        with_payload=True,
+    )
+    if results.points:
+        return results.points[0].payload.get("label")
+    return None
+
+async def upsert_canonical_tag(label: str, vector: list[float]) -> None:
+    client = get_client()
+    await client.upsert(
+        collection_name=TAGS_COLLECTION,
+        points=[PointStruct(
+            id=str(uuid.uuid5(uuid.NAMESPACE_DNS, label)),
+            vector=vector,
+            payload={"label": label},
+        )],
+    )
+    logger.debug(f"Upserted canonical tag: {label}")
 
 async def upsert_message_chunk(point: dict):
     client = get_client()
@@ -336,3 +412,146 @@ async def get_all_tags(limit: int = 1000) -> list[dict]:
     # Most recent first
     result.sort(key=lambda x: x["timestamp"], reverse=True)
     return result[:limit]
+
+# ── Personal Facts ───────────────────────────────────────────────────────────
+
+PERSONAL_FACTS_COLLECTION = "personal_facts"
+
+async def init_personal_facts_collection() -> None:
+    client = get_client()
+    existing = await client.get_collections()
+    names = [c.name for c in existing.collections]
+
+    if PERSONAL_FACTS_COLLECTION not in names:
+        await client.create_collection(
+            collection_name=PERSONAL_FACTS_COLLECTION,
+            vectors_config=VectorParams(size=EMBEDDING_DIM, distance=Distance.COSINE),
+        )
+        for field, schema in [
+            ("user_id",       PayloadSchemaType.KEYWORD),
+            ("canonical_key", PayloadSchemaType.KEYWORD),
+            ("category",      PayloadSchemaType.KEYWORD),
+            ("status",        PayloadSchemaType.KEYWORD),
+        ]:
+            await client.create_payload_index(PERSONAL_FACTS_COLLECTION, field, schema)
+        logger.info(f"Created Qdrant collection '{PERSONAL_FACTS_COLLECTION}'")
+    else:
+        logger.info(f"Qdrant collection '{PERSONAL_FACTS_COLLECTION}' already exists")
+
+
+async def search_active_personal_facts(
+    query_vector: list[float],
+    user_id: str,
+    limit: int = 8,
+    score_threshold: float = 0.75,
+) -> list[dict]:
+    """Semantic search over active personal facts for a user."""
+    client = get_client()
+    results = await client.query_points(
+        collection_name=PERSONAL_FACTS_COLLECTION,
+        query=query_vector,
+        query_filter=Filter(
+            must=[
+                FieldCondition(key="user_id", match=MatchValue(value=user_id)),
+                FieldCondition(key="status",  match=MatchValue(value="active")),
+            ]
+        ),
+        limit=limit,
+        score_threshold=score_threshold,
+        with_payload=True,
+    )
+    return [dict(p.payload) for p in results.points]
+
+
+async def get_personal_facts_by_category(
+    user_id: str,
+    categories: list[str],
+) -> list[dict]:
+    """Pull all active facts in given categories — used for always-inject identity/occupation."""
+    client = get_client()
+    results, _ = await client.scroll(
+        collection_name=PERSONAL_FACTS_COLLECTION,
+        scroll_filter=Filter(
+            must=[
+                FieldCondition(key="user_id", match=MatchValue(value=user_id)),
+                FieldCondition(key="status",  match=MatchValue(value="active")),
+            ],
+            should=[
+                FieldCondition(key="category", match=MatchValue(value=cat))
+                for cat in categories
+            ],
+        ),
+        limit=20,
+        with_payload=True,
+        with_vectors=False,
+    )
+    return [dict(p.payload) for p in results]
+
+
+async def find_conflicting_personal_fact(
+    query_vector: list[float],
+    user_id: str,
+    threshold: float = 0.88,
+) -> dict | None:
+    """
+    Search for an active fact that's semantically close enough to be
+    the same subject — i.e., a potential contradiction or confirmation.
+    Higher threshold than regular search: we only want near-identical topics.
+    """
+    client = get_client()
+    results = await client.query_points(
+        collection_name=PERSONAL_FACTS_COLLECTION,
+        query=query_vector,
+        query_filter=Filter(
+            must=[
+                FieldCondition(key="user_id", match=MatchValue(value=user_id)),
+                FieldCondition(key="status",  match=MatchValue(value="active")),
+            ]
+        ),
+        limit=1,
+        score_threshold=threshold,
+        with_payload=True,
+        with_vectors=False,
+    )
+    if results.points:
+        return dict(results.points[0].payload) | {"_id": str(results.points[0].id)}
+    return None
+
+
+async def supersede_personal_fact(point_id: str) -> None:
+    """Mark an existing personal fact as superseded (soft delete)."""
+    client = get_client()
+    await client.set_payload(
+        collection_name=PERSONAL_FACTS_COLLECTION,
+        payload={"status": "superseded"},
+        points=[point_id],
+    )
+    logger.debug(f"Superseded personal fact {point_id}")
+
+
+async def upsert_personal_fact(payload: dict, vector: list[float]) -> None:
+    client = get_client()
+    point_id = str(uuid.uuid4())
+    await client.upsert(
+        collection_name=PERSONAL_FACTS_COLLECTION,
+        points=[PointStruct(id=point_id, vector=vector, payload=payload)],
+    )
+    logger.debug(f"Upserted personal fact [{payload['category']}]: {payload['fact'][:60]}")
+
+
+async def get_all_active_personal_facts(user_id: str) -> list[dict]:
+    """Scroll all active personal facts — used by /personal-facts endpoint for gold nodes."""
+    client = get_client()
+    results, _ = await client.scroll(
+        collection_name=PERSONAL_FACTS_COLLECTION,
+        scroll_filter=Filter(
+            must=[
+                FieldCondition(key="user_id", match=MatchValue(value=user_id)),
+                FieldCondition(key="status",  match=MatchValue(value="active")),
+            ]
+        ),
+        limit=200,
+        with_payload=True,
+        with_vectors=False,
+    )
+    return [dict(p.payload) | {"_id": str(p.id)} for p in results]

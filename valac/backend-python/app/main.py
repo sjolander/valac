@@ -62,6 +62,11 @@ from app.services.qdrant_service import (
     init_topic_chunks_collection,
     search_topic_chunks,
     wipe_qdrant,
+    init_tags_collection,
+    search_canonical_tag,
+    upsert_canonical_tag,
+    init_personal_facts_collection,
+    get_all_active_personal_facts
 )
 from app.services.event_service import emit, subscribe, unsubscribe
 
@@ -95,6 +100,8 @@ async def startup():
     await init_collection()
     await init_topic_chunks_collection()
     await init_message_chunks_collection()
+    await init_tags_collection()
+    await init_personal_facts_collection()
     await init_db()
 
 
@@ -147,6 +154,10 @@ async def store_memory(
         extracted_dict = await extract_memory(user_message, assistant_message)
         if not extracted_dict:
             return
+        
+        # Normalize tags so we don't have "Massachusetts" and "MA"
+        raw_tags = extracted_dict.get("tags", [])
+        extracted_dict["tags"] = await normalize_tags(raw_tags)
 
         extracted = ExtractedMemory(**extracted_dict)
         vector    = await get_embedding(extracted.summary)
@@ -462,3 +473,45 @@ async def list_tags():
     """
     tags = await get_all_tags()
     return JSONResponse(tags)
+
+async def normalize_tags(raw_tags: list[str]) -> list[str]:
+    """
+    For each tag, check if a semantically similar canonical tag exists.
+    If yes, use it. If no, register the new tag as canonical.
+    """
+    normalized = []
+    for tag in raw_tags:
+        tag = tag.lower().strip()
+        if not tag:
+            continue
+        vector = await get_embedding(tag)
+        canonical = await search_canonical_tag(vector)
+        if canonical:
+            logger.debug(f"Tag normalized: '{tag}' → '{canonical}'")
+            normalized.append(canonical)
+        else:
+            await upsert_canonical_tag(tag, vector)
+            normalized.append(tag)
+    return normalized
+
+@app.get("/personal-facts")
+async def list_personal_facts(user_id: str = "default"):
+    """
+    Returns active personal facts as graph nodes for gold node rendering.
+    Each node includes version history for display.
+    """
+    facts = await get_all_active_personal_facts(user_id)
+    return JSONResponse([
+        {
+            "id":            f["_id"],
+            "label":         f["fact"],
+            "category":      f.get("category", "context"),
+            "canonical_key": f.get("canonical_key", ""),
+            "version":       f.get("version", 1),
+            "previous_fact": f.get("previous_fact"),
+            "confidence":    f.get("confidence", 0.7),
+            "times_seen":    f.get("times_seen", 1),
+            "created_at":    f.get("created_at"),
+        }
+        for f in facts
+    ])
