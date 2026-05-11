@@ -39,6 +39,7 @@ graph TD;
 - Post-response processing can overwhelm LLM can cause failed writes -
   Need to use lighter LLM for smaller processes like topic updates; Will also push post-response tasks to workers through some kind of
   durable queue like Redis with Celery.
+- Chokes on embedding when given long code snippets
 
 ## ✅ Phase 1: Proof of Concept
 
@@ -106,6 +107,10 @@ Goal: Cloud-based deployment for quick demonstrations
 - [ ] Reconfigure for AWS
 - [ ] Add authentication, rate limiting, logging
 - [ ] Improve error handling and user feedback
+
+## Unscheduled features
+
+- [ ] RAG pipeline to allow for full document drops
 
 ## Design Philosophy
 

@@ -188,12 +188,9 @@ async def ask(req: AskRequest):
  
     async def stream():
         try:
-            # ── 1. Embed + search gate concurrently ──────────────────────
-            embed_task = asyncio.create_task(get_embedding(req.prompt))
-            gate_task  = asyncio.create_task(should_search(req.prompt))
-            query_vector, (needs_search, search_query, needs_verbatim, is_personal, is_complex) = await asyncio.gather(
-                embed_task, gate_task
-            )
+            # ── 1. Embed + search gate  ──────────────────────
+            query_vector = await get_embedding(req.prompt)
+            needs_search, search_query, needs_verbatim, is_personal, is_complex = await should_search(req.prompt)
  
             # ── 2. Web search (if needed) ─────────────────────────────────
             search_block = ""
@@ -210,6 +207,7 @@ async def ask(req: AskRequest):
             memory_block = ""
             chunk_block  = ""
             topic_block  = ""
+            personal_result = []
 
 
             if is_complex:
