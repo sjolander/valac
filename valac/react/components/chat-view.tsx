@@ -6,6 +6,7 @@ import { Send, Sparkles, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { StatusTrack } from './status-track';
 
 export interface Message {
   id: string;
@@ -21,6 +22,7 @@ interface ChatViewProps {
   onSend: () => void;
   onSuggestionClick: (value: string) => void;
   isLoading?: boolean;
+  statusLines?: string[];
 }
 
 export function ChatView({
@@ -30,6 +32,7 @@ export function ChatView({
   onSend,
   onSuggestionClick,
   isLoading,
+  statusLines = [],
 }: ChatViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -236,21 +239,12 @@ export function ChatView({
               </div>
             ))
           )}
-
-          {/* Loading indicator */}
-          {isLoading && (
-            <div className="flex gap-4">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary/30 to-accent/30 text-primary shadow-[0_0_15px_var(--glow)]">
-                <Sparkles className="h-4 w-4 animate-pulse" />
-              </div>
-              <div className="flex items-center gap-1 px-4 py-3">
-                <span className="h-2 w-2 rounded-full bg-primary/50 animate-bounce [animation-delay:-0.3s]" />
-                <span className="h-2 w-2 rounded-full bg-primary/50 animate-bounce [animation-delay:-0.15s]" />
-                <span className="h-2 w-2 rounded-full bg-primary/50 animate-bounce" />
-              </div>
-            </div>
-          )}
         </div>
+      </div>
+
+      {/* Status Track */}
+      <div className="px-6 pb-0">
+        <StatusTrack lines={statusLines} isLoading={!!isLoading} />
       </div>
 
       {/* Input Area */}

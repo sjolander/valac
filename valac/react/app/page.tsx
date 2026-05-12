@@ -36,7 +36,7 @@ export default function Home() {
   );
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [statusLine, setStatusLine] = useState('');
+  const [statusLines, setStatusLines] = useState<string[]>([]);
   const [leftPanelOpen, setLeftPanelOpen] = useState(true);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
 
@@ -127,7 +127,7 @@ export default function Home() {
       setActiveId(id);
       conversationId.current = id;
       setMessages([]);
-      setStatusLine('');
+      setStatusLines([]);
       try {
         const res = await fetch(`${API_URL}/conversations/${id}/messages`);
         const data = await res.json();
@@ -143,13 +143,14 @@ export default function Home() {
     conversationId.current = generateId();
     setActiveId(null);
     setMessages([]);
-    setStatusLine('');
+    setStatusLines([]);
   }, []);
 
   // ── Send ──────────────────────────────────────────────────────────────────
 
   const handleSend = useCallback(
     async (override?: string) => {
+      setStatusLines([]);
       const prompt = (override ?? input).trim();
       if (!prompt || isLoading) return;
       if (override) setInput(''); // clear if came from suggestion
@@ -179,7 +180,7 @@ export default function Home() {
       setMessages((prev) => [...prev, userMsg, assistantMsg]);
       if (!override) setInput('');
       setIsLoading(true);
-      setStatusLine('');
+      setStatusLines([]);
 
       await streamAsk(prompt, conversationId.current, USER_ID, {
         onToken: (token) =>
@@ -188,7 +189,7 @@ export default function Home() {
               m.id === assistantId ? { ...m, content: m.content + token } : m,
             ),
           ),
-        onStatus: setStatusLine,
+        onStatus: (line) => setStatusLines((prev) => [...prev, line]),
         onTags: () => {},
         onError: (error) =>
           setMessages((prev) =>
@@ -198,7 +199,7 @@ export default function Home() {
           ),
         onDone: () => {
           setIsLoading(false);
-          setStatusLine('');
+          setStatusLines([]);
           fetchConversations();
         },
       });
@@ -257,12 +258,6 @@ export default function Home() {
             </div>
           </div>
 
-          {statusLine && (
-            <span className="text-xs text-muted-foreground/70 italic truncate mx-4 flex-1 text-center">
-              {statusLine}
-            </span>
-          )}
-
           <Button
             variant="ghost"
             size="icon"
@@ -285,6 +280,7 @@ export default function Home() {
             onSend={() => handleSend()}
             onSuggestionClick={handleSuggestionClick}
             isLoading={isLoading}
+            statusLines={statusLines}
           />
         </div>
       </main>

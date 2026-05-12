@@ -48,7 +48,7 @@ Valac needs two models: one for chat and one for embeddings.
 
 ```bash
 ollama pull qwen3:8b
-ollama pull all-minilm
+ollama pull nomic-embed-text
 ```
 
 ### 2. Configure environment
@@ -160,7 +160,7 @@ Goal: Display memories as conversations and topics/tags and allow editing
 - [ ] Add topic viewer to UI
   - [x] Initial graph visualization
   - [ ] Highlight tags connected to current conversation
-  - [ ] Allow separate graphs for user vs. general memories
+  - [x] Allow separate graphs for user vs. general memories
 - [ ] Manual tag editing?
 - [ ] Memory deletion from UI
   - [x] Complete memory wipe

@@ -218,7 +218,9 @@ async def ask(req: AskRequest):
         try:
             # ── 1. Embed + search gate  ──────────────────────
             query_vector = await get_embedding(req.prompt)
+            yield f"__STATUS__Wondering if personal data would help to answer this\n"
             introspective = await is_introspective(req.prompt)
+            yield f"__STATUS__Considering a web search\n"
             needs_search, search_query, needs_verbatim, is_personal, is_complex = await should_search(req.prompt)
 
             # query_vector = await get_embedding(req.prompt)
@@ -240,7 +242,6 @@ async def ask(req: AskRequest):
             chunk_block  = ""
             topic_block  = ""
             personal_result = []
-            introspective = await is_introspective(req.prompt)
 
             if introspective:
                 yield "__STATUS__Pulling everything I know about you...\n"
