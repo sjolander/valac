@@ -97,18 +97,6 @@ The UI has a **Wipe DB** button in the conversation sidebar that clears all mess
 
 ---
 
-### Switching to a different model
-
-Change `OLLAMA_MODEL` in your `.env` and restart the backend:
-
-```bash
-OLLAMA_MODEL=llama3.2
-```
-
-Any model available in your local Ollama installation will work. Larger models give better memory extraction and reasoning at the cost of speed.
-
----
-
 ### Running Ollama inside Docker (optional)
 
 By default Ollama runs on your host for speed. If you prefer a fully containerized setup, uncomment the `ollama` service in `docker-compose.yml` and update `OLLAMA_HOST` in your `.env`:
