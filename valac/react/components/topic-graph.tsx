@@ -1,11 +1,11 @@
 'use client';
 
-import { useRef, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { X, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { Tag } from './topics-panel';
 import React from 'react';
+import { useRef, useEffect, useMemo, useState } from 'react';
 
 const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), {
   ssr: false,
@@ -98,6 +98,7 @@ export const TagGraph = React.memo(function TagGraph({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const graphRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [dims, setDims] = useState({ width: 500, height: 600 });
 
   // ── Graph data ─────────────────────────────────────────────────────────────
   const data = useMemo(() => {
@@ -168,6 +169,16 @@ export const TagGraph = React.memo(function TagGraph({
     return () => clearTimeout(t);
   }, []);
 
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const ro = new ResizeObserver((entries) => {
+      const { width, height } = entries[0].contentRect;
+      if (width > 0 && height > 0) setDims({ width, height });
+    });
+    ro.observe(containerRef.current);
+    return () => ro.disconnect();
+  }, []);
+
   const handleZoomIn = () => {
     const z = graphRef.current?.zoom();
     graphRef.current?.zoom(z * 1.5, 300);
@@ -198,9 +209,6 @@ export const TagGraph = React.memo(function TagGraph({
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border/50 p-4">
         <div className="flex items-center gap-3">
-          <h2 className="text-sm font-medium tracking-wide text-foreground">
-            Tag Network
-          </h2>
           <span className="text-xs text-muted-foreground">
             {tags.length} tags
             {personalFacts.length > 0 && (
@@ -364,8 +372,8 @@ export const TagGraph = React.memo(function TagGraph({
           }}
           nodeRelSize={6}
           nodeVal={(node) => (node as GraphNode).relevance * 4 + 1}
-          width={containerRef.current?.clientWidth || 800}
-          height={containerRef.current?.clientHeight || 600}
+          width={dims.width}
+          height={dims.height}
           cooldownTicks={120}
           onEngineStop={() => graphRef.current?.zoomToFit(400)}
         />

@@ -1,8 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import { ChevronLeft, ChevronRight, Network } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Network } from 'lucide-react';
 
 export interface Tag {
   id: string;
@@ -13,38 +12,17 @@ export interface Tag {
 
 interface TagsPanelProps {
   tags: Tag[];
-  isExpanded: boolean;
-  onToggleExpand: () => void;
   onTagClick: (tag: Tag) => void;
 }
 
-export function TagsPanel({
-  tags,
-  isExpanded,
-  onToggleExpand,
-  onTagClick: onTagClick,
-}: TagsPanelProps) {
+export function TagsPanel({ tags, onTagClick: onTagClick }: TagsPanelProps) {
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border/50 p-4">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onToggleExpand}
-            className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-          >
-            {isExpanded ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
-              <ChevronLeft className="h-4 w-4" />
-            )}
-          </Button>
-          <h2 className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
-            Tags
-          </h2>
-        </div>
+      <div className="flex items-center justify-between border-b border-border/50 px-4 py-3">
+        <h2 className="text-xs font-medium tracking-widest text-muted-foreground uppercase">
+          Topics
+        </h2>
         <div className="flex items-center gap-1 text-xs text-muted-foreground/60">
           <Network className="h-3 w-3" />
           <span>{tags.length}</span>

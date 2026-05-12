@@ -42,17 +42,17 @@ export function ConversationList({
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border/50 p-4">
+      <div className="border-b border-border/50 p-4 space-y-3">
         <h2 className="text-lg font-medium tracking-wide text-muted-foreground">
           Conversations
         </h2>
         <Button
-          variant="ghost"
-          size="icon"
           onClick={onNewChat}
-          className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+          variant="ghost"
+          className="w-full gap-2 bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30 hover:border-primary/50 hover:shadow-[0_0_15px_var(--glow)] transition-all duration-200"
         >
           <Plus className="h-4 w-4" />
+          New Conversation
         </Button>
       </div>
 

@@ -170,7 +170,35 @@ async def store_memory(
     except Exception as e:
         logger.error(f"store_memory failed: {e}", exc_info=True)
         return [] 
+    
 
+# -----------------------------------------------------------------------
+# is_introspective
+# -----------------------------------------------------------------------
+async def is_introspective(prompt: str) -> bool:
+    """
+    Ask the LLM whether this prompt is asking about the system's stored
+    knowledge of the user or their past interactions. Returns True/False.
+    """
+    try:
+        classify_prompt = (
+            "You are a query classifier. Answer with a single word: YES or NO.\n\n"
+            "Question: Is the following message asking about what you remember, "
+            "know, or have stored about the user — including their past conversations, "
+            "topics discussed, personal facts, goals, preferences, or profile?\n\n"
+            f"Message: {prompt}\n\n"
+            "Answer (YES or NO):"
+        )
+        result_tokens = []
+        async for token in stream_chat(classify_prompt, system_prompt="", history=[]):
+            result_tokens.append(token)
+        result = "".join(result_tokens).strip().upper()
+        logger.debug(f"is_introspective classification: {result.startswith('YES')}")
+        return result.startswith("YES")
+    except Exception as e:
+        logger.warning(f"is_introspective classification failed: {e}")
+        return False
+    
 # ---------------------------------------------------------------------------
 # /ask
 # ---------------------------------------------------------------------------
@@ -190,7 +218,11 @@ async def ask(req: AskRequest):
         try:
             # ── 1. Embed + search gate  ──────────────────────
             query_vector = await get_embedding(req.prompt)
+            introspective = await is_introspective(req.prompt)
             needs_search, search_query, needs_verbatim, is_personal, is_complex = await should_search(req.prompt)
+
+            # query_vector = await get_embedding(req.prompt)
+            # needs_search, search_query, needs_verbatim, is_personal, is_complex = await should_search(req.prompt)
  
             # ── 2. Web search (if needed) ─────────────────────────────────
             search_block = ""
@@ -203,18 +235,24 @@ async def ask(req: AskRequest):
             else:
                 yield "__STATUS__Decided not to search the web\n"
  
-      # ── 3. Retrieve all memory sources concurrently ───────────────────
+            # ── 3. Retrieve all memory sources concurrently ───────────────────
             memory_block = ""
             chunk_block  = ""
             topic_block  = ""
             personal_result = []
+            introspective = await is_introspective(req.prompt)
 
+            if introspective:
+                yield "__STATUS__Pulling everything I know about you...\n"
+                all_facts, all_tags = await asyncio.gather(
+                    get_all_active_personal_facts(req.user_id),
+                    get_all_tags(),
+                )
 
-            if is_complex:
+            elif is_complex:
                 yield "__STATUS__Searching past conversations...\n"
 
                 personal_future = search_personal_facts(query_vector, user_id=req.user_id) if is_personal else asyncio.sleep(0)
-
                 chunk_future = search_message_chunks(query_vector) if needs_verbatim else asyncio.sleep(0)
 
                 candidates, chunk_result, topic_chunks, personal_result = await asyncio.gather(
@@ -224,7 +262,6 @@ async def ask(req: AskRequest):
                     personal_future,
                 )
 
-                # Process memories
                 ranked       = re_rank(candidates)
                 memory_block = format_memories_for_prompt(ranked)
                 if memory_block:
@@ -234,7 +271,6 @@ async def ask(req: AskRequest):
                 else:
                     yield "__STATUS__No matching memories found\n"
 
-                # Process message chunks (only if needs_verbatim)
                 if needs_verbatim and isinstance(chunk_result, list) and chunk_result:
                     chunk_texts = [
                         c.payload.get("text", "")
@@ -247,16 +283,16 @@ async def ask(req: AskRequest):
                     ) if chunk_texts else ""
                     yield "__STATUS__Found relevant excerpts\n" if chunk_texts else "__STATUS__No relevant excerpts found\n"
 
-                # Process topic chunks
                 topic_block = await format_topic_chunks_for_prompt(topic_chunks)
                 if topic_block:
                     labels = ", ".join(c.payload.topic_label for c in topic_chunks[:2])
                     yield f"__STATUS__Found related past conversations: {labels}\n"
                 else:
                     yield "__STATUS__No related past conversations found\n"
+
             else:
                 yield "__STATUS__Simple query — skipping memory retrieval\n"
- 
+
             # ── 5. Build system prompt ────────────────────────────────────
             system_parts = [
                 (
@@ -273,21 +309,44 @@ async def ask(req: AskRequest):
                     "lack context when the answer is visible in the conversation above."
                 ),
             ]
- 
-            if memory_block:
-                system_parts.append(memory_block)
- 
-            if topic_block:
-                system_parts.append(topic_block)
 
-            if chunk_block:
-                system_parts.append(chunk_block)
+            if introspective:
+                # Build a complete self-knowledge block from all stored data
+                if all_facts:
+                    by_category: dict[str, list[str]] = {}
+                    for f in all_facts:
+                        cat = f.get("category", "context").capitalize()
+                        by_category.setdefault(cat, []).append(f["fact"])
+                    facts_lines = ["Here is everything I currently know about the user, organized by category:\n"]
+                    for cat, items in by_category.items():
+                        facts_lines.append(f"{cat}:")
+                        facts_lines.extend(f"  - {item}" for item in items)
+                    system_parts.append("\n".join(facts_lines))
+                else:
+                    system_parts.append(
+                        "I have no stored personal facts about the user yet. "
+                        "Be honest about this — do not invent or guess."
+                    )
 
-            if is_personal and isinstance(personal_result, list) and personal_result:
-                personal_block = format_personal_facts_for_prompt(personal_result)
-                if personal_block:
-                    system_parts.append(personal_block)
- 
+                if all_tags:
+                    tag_labels = [t["label"] for t in all_tags if t.get("label")]
+                    if tag_labels:
+                        system_parts.append(
+                            "Topics we have discussed across all conversations:\n" +
+                            ", ".join(tag_labels)
+                        )
+            else:
+                if memory_block:
+                    system_parts.append(memory_block)
+                if topic_block:
+                    system_parts.append(topic_block)
+                if chunk_block:
+                    system_parts.append(chunk_block)
+                if is_personal and isinstance(personal_result, list) and personal_result:
+                    personal_block = format_personal_facts_for_prompt(personal_result)
+                    if personal_block:
+                        system_parts.append(personal_block)
+
             if search_block:
                 system_parts.append(
                     "The following web search results are current and accurate. "
@@ -295,7 +354,7 @@ async def ask(req: AskRequest):
                     "Do not say you lack access to current information when search results are provided.\n\n"
                     + search_block
                 )
- 
+
             system_prompt = "\n\n".join(system_parts)
  
             # ── 6. Stream LLM response ────────────────────────────────────

@@ -19,6 +19,7 @@ interface ChatViewProps {
   input: string;
   onInputChange: (value: string) => void;
   onSend: () => void;
+  onSuggestionClick: (value: string) => void;
   isLoading?: boolean;
 }
 
@@ -27,6 +28,7 @@ export function ChatView({
   input,
   onInputChange,
   onSend,
+  onSuggestionClick,
   isLoading,
 }: ChatViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -56,12 +58,62 @@ export function ChatView({
                 <Sparkles className="h-12 w-12 text-primary" />
               </div>
               <h1 className="text-2xl font-semibold text-foreground mb-2 tracking-tight">
-                How can I help you today?
+                Valac remembers.
               </h1>
-              <p className="text-muted-foreground text-sm max-w-md">
-                Ask me anything. I&apos;m here to assist with questions,
-                creative tasks, analysis, and more.
+              <p className="text-muted-foreground text-sm max-w-sm mb-6">
+                Unlike a standard AI, Valac builds a persistent memory of who
+                you are — your projects, preferences, and context — and brings
+                it to every conversation.
               </p>
+              <div className="grid grid-cols-3 gap-3 max-w-md text-left mb-8">
+                {[
+                  {
+                    title: 'Complete personalization',
+                    body: 'Builds a profile of who you are — your goals, preferences, and context — and brings it to every reply.',
+                  },
+                  {
+                    title: 'Fully private',
+                    body: 'Runs entirely on your machine. Your conversations never leave your hardware.',
+                  },
+                  {
+                    title: 'Transparent memory',
+                    body: 'See exactly what it knows. Browse your topics and profile in the panel on the right.',
+                  },
+                ].map(({ title, body }) => (
+                  <div
+                    key={title}
+                    className="rounded-xl border border-border/50 bg-secondary/30 p-3"
+                  >
+                    <p className="text-xs font-semibold text-primary mb-1">
+                      {title}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      {body}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <div className="w-full max-w-md">
+                <p className="text-[11px] uppercase tracking-widest text-muted-foreground/50 mb-3">
+                  Try asking
+                </p>
+                <div className="flex flex-col gap-2">
+                  {[
+                    'What do you remember about me so far?',
+                    'What topics have we talked about the most?',
+                    'Based on our conversations, what are my main goals?',
+                    'Summarize what you know about my work.',
+                  ].map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      onClick={() => onSuggestionClick(suggestion)}
+                      className="w-full rounded-xl border border-border/50 bg-secondary/30 px-4 py-2.5 text-left text-sm text-muted-foreground hover:border-primary/40 hover:bg-secondary/60 hover:text-foreground hover:shadow-[0_0_12px_var(--glow)] transition-all duration-200"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           ) : (
             messages.map((message) => (
@@ -202,9 +254,9 @@ export function ChatView({
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-border/50 bg-card/50 p-4">
+      <div className="border-t border-border bg-card p-4">
         <div className="mx-auto max-w-3xl">
-          <div className="relative flex items-end gap-3 rounded-2xl bg-secondary/50 border border-border/50 p-2 focus-within:border-primary/50 focus-within:shadow-[0_0_20px_var(--glow)] transition-all duration-300">
+          <div className="relative flex items-end gap-3 rounded-2xl bg-background border-2 border-border p-3 focus-within:border-primary focus-within:shadow-[0_0_25px_var(--glow)] transition-all duration-300">
             <textarea
               ref={inputRef}
               value={input}
@@ -212,18 +264,15 @@ export function ChatView({
               onKeyDown={handleKeyDown}
               placeholder="Message Valac..."
               rows={1}
-              className="flex-1 resize-none bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
-              style={{
-                minHeight: '40px',
-                maxHeight: '200px',
-              }}
+              className="flex-1 resize-none bg-transparent px-2 py-2 text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none"
+              style={{ minHeight: '44px', maxHeight: '200px' }}
             />
             <Button
               onClick={onSend}
               disabled={!input.trim() || isLoading}
               size="icon"
               className={cn(
-                'h-10 w-10 rounded-xl transition-all duration-200',
+                'h-10 w-10 rounded-xl transition-all duration-200 shrink-0',
                 input.trim()
                   ? 'bg-primary text-primary-foreground shadow-[0_0_15px_var(--glow)]'
                   : 'bg-muted text-muted-foreground',
@@ -232,9 +281,6 @@ export function ChatView({
               <Send className="h-4 w-4" />
             </Button>
           </div>
-          <p className="mt-2 text-center text-[10px] text-muted-foreground/50">
-            Valac AI can make mistakes. Consider checking important information.
-          </p>
         </div>
       </div>
     </div>
