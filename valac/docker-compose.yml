@@ -20,7 +20,7 @@ services:
       - ./react:/usr/src/app
       - /usr/src/app/node_modules
     working_dir: /usr/src/app
-    command: [ "npm", "run", "dev" ]
+    command: ["npm", "run", "dev"]
   python-backend:
     build:
       context: ./backend-python
@@ -57,7 +57,7 @@ services:
         "--reload",
       ]
   searxng:
-    image: searxng/searxng
+    image: searxng/searxng@sha256:4d7ed8b7035ecf827bd901ba6d32f5c32d8119bc09bb3cdafeb0ce58f1b951c1
     ports:
       - "8080:8080"
     networks:
@@ -106,7 +106,7 @@ services:
     networks:
       - valac-net
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U valac" ]
+      test: ["CMD-SHELL", "pg_isready -U valac"]
       interval: 10s
       timeout: 5s
       retries: 5
