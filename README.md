@@ -53,24 +53,12 @@ ollama pull qwen3:8b
 ollama pull nomic-embed-text
 ```
 
-### 2. Configure environment
+### 2. Start the stack
 
-Create a `.env` file in the project root:
-
-```bash
-# On macOS or Windows (Docker Desktop)
-OLLAMA_HOST=http://host.docker.internal:11434
-
-# On Linux (host networking)
-OLLAMA_HOST=http://172.17.0.1:11434
-```
-
-`host.docker.internal` lets the backend container reach Ollama running on your machine. Linux users may need to use the Docker bridge IP instead — run `ip addr show docker0` to confirm it.
-
-### 3. Start the stack
+Run this command from the directory with docker-compose.yml (valac/valac):
 
 ```bash
-docker compose up --build
+docker compose up -d
 ```
 
 This starts:
@@ -85,7 +73,7 @@ This starts:
 
 First startup takes a few minutes while Docker builds the images. Subsequent starts are fast.
 
-### 4. Open Valac
+### 3. Open Valac
 
 Navigate to [http://localhost:3000](http://localhost:3000). Start chatting — memory accumulates automatically as you use it. The panel on the right shows your topics and profile as they build up.
 
