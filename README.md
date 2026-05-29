@@ -39,10 +39,10 @@ graph TD;
 
 ### Prerequisites
 
-- [Docker](https://www.docker.com/get-started) and Docker Compose
+- [Docker](https://www.docker.com/get-started)
 - [Ollama](https://ollama.com) installed and running on your host machine
 
-Valac runs Ollama on your host (not inside Docker) for faster inference. Make sure Ollama is running before starting the stack.
+Valac runs Ollama on your host machine by default for faster inference. Make sure Ollama is running before starting the stack. Optionally, Ollama can run in a container.
 
 ### 1. Pull the required models
 
@@ -120,7 +120,7 @@ Goal: A self-contained, local system that runs end-to-end.
 
 ---
 
-## Phase 2: Memory Management
+## ✅ Phase 2: Memory Management
 
 Goal: Display memories as conversations and topics/tags and allow editing
 
@@ -133,31 +133,29 @@ Goal: Display memories as conversations and topics/tags and allow editing
 - [x] Personalization memories
   - [x] Detect and store
   - [x] Display as gold nodes in graph view
-- [ ] Allow ability for user to spawn multiple threads off of the same conversation. (Do we need this when Valac has cross-conversation memory?)
-- [ ] Memory summarization
-- [ ] Add topic viewer to UI
+- [x] Add topic viewer to UI
   - [x] Initial graph visualization
-  - [ ] Highlight tags connected to current conversation
+  - [x] Highlight tags connected to current conversation
   - [x] Allow separate graphs for user vs. general memories
-- [ ] Manual tag editing?
-- [ ] Memory deletion from UI
-  - [x] Complete memory wipe
-  - [ ] Delete tag
-  - [ ] Delete conversation
-- [ ] Memory locks in UI - User marks a memory/topic/conversation as permanent and not a candidate for deletion and/or summarization
-- [ ] DB size limit control in UI
+- [x] Complete memory wipe
 - [x] Add automatic web search functionality
-- [ ] Display web links for sources
-- [ ] Durable post-response worker queue
 
 ---
 
-## Phase 3: Agency and Autonomous Behavior
+## Phase 3: Agency and Advanced Memory Management
 
 Goal: Agency and passive memory management
 
-- [ ] Investigate MCP
+- [ ] Memory deletion from UI
+  - [ ] Delete conversation
+  - [ ] Delete tag
+- [ ] DB size limit control in UI
+- [ ] Memory locks in UI - User marks a memory/topic/conversation as permanent and not a candidate for deletion and/or summarization
+- [ ] Memory summarization
 - [ ] Enable Valac to trim its own memory autonomously
+- [ ] Display web links for sources
+- [ ] Durable post-response worker queue
+- [ ] Investigate MCP
 - [ ] Integrate LangChain plugins
 - [ ] User selectable LLM models for core and auxiliary tasks
 
