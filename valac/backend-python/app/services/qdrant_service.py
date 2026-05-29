@@ -555,3 +555,51 @@ async def get_all_active_personal_facts(user_id: str) -> list[dict]:
         with_vectors=False,
     )
     return [dict(p.payload) | {"_id": str(p.id)} for p in results]
+
+async def get_tags_for_conversation(conversation_id: str) -> list[str]:
+    """Return unique tag labels from all memories in a given conversation."""
+    client = get_client()
+    labels: set[str] = set()
+    next_offset = None
+    while True:
+        result, next_offset = await client.scroll(
+            collection_name=COLLECTION,
+            scroll_filter=Filter(
+                must=[FieldCondition(key="conversation_id", match=MatchValue(value=conversation_id))]
+            ),
+            offset=next_offset,
+            limit=100,
+            with_payload=True,
+            with_vectors=False,
+        )
+        for point in result:
+            for tag in (point.payload or {}).get("tags", []):
+                labels.add(tag.lower().strip())
+        if next_offset is None:
+            break
+    return list(labels)
+
+
+async def get_conversation_ids_for_tag(label: str) -> list[str]:
+    """Return unique conversation IDs from memories tagged with a given label."""
+    client = get_client()
+    conv_ids: set[str] = set()
+    next_offset = None
+    while True:
+        result, next_offset = await client.scroll(
+            collection_name=COLLECTION,
+            scroll_filter=Filter(
+                must=[FieldCondition(key="tags", match=MatchValue(value=label.lower().strip()))]
+            ),
+            offset=next_offset,
+            limit=100,
+            with_payload=True,
+            with_vectors=False,
+        )
+        for point in result:
+            cid = (point.payload or {}).get("conversation_id")
+            if cid:
+                conv_ids.add(cid)
+        if next_offset is None:
+            break
+    return list(conv_ids)

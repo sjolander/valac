@@ -66,7 +66,9 @@ from app.services.qdrant_service import (
     search_canonical_tag,
     upsert_canonical_tag,
     init_personal_facts_collection,
-    get_all_active_personal_facts
+    get_all_active_personal_facts,
+    get_tags_for_conversation,
+    get_conversation_ids_for_tag,
 )
 from app.services.event_service import emit, subscribe, unsubscribe
 
@@ -199,6 +201,19 @@ async def is_introspective(prompt: str) -> bool:
         logger.warning(f"is_introspective classification failed: {e}")
         return False
     
+@app.get("/conversations/{conversation_id}/tags")
+async def get_conversation_tag_labels(conversation_id: str):
+    """Tag labels associated with memories in this conversation."""
+    labels = await get_tags_for_conversation(conversation_id)
+    return JSONResponse({"labels": labels})
+
+
+@app.get("/tags/conversations")
+async def get_conversations_for_tag(label: str):
+    """Conversation IDs containing at least one memory with this tag label."""
+    conversation_ids = await get_conversation_ids_for_tag(label)
+    return JSONResponse({"conversation_ids": conversation_ids})
+
 # ---------------------------------------------------------------------------
 # /ask
 # ---------------------------------------------------------------------------

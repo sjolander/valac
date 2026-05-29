@@ -30,6 +30,8 @@ interface TagGraphProps {
   tags: Tag[];
   personalFacts?: PersonalFact[];
   activeConversationTagIds?: Set<string>;
+  selectedTagId?: string | null;
+  onTagClick?: (tag: Tag) => void;
   onClose: () => void;
 }
 
@@ -93,6 +95,8 @@ export const TagGraph = React.memo(function TagGraph({
   tags,
   personalFacts = [],
   activeConversationTagIds,
+  selectedTagId,
+  onTagClick,
   onClose,
 }: TagGraphProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -291,6 +295,7 @@ export const TagGraph = React.memo(function TagGraph({
             const isPersonal = node.type === 'personal';
             const active =
               !isPersonal && (activeConversationTagIds?.has(node.id) ?? false);
+            const isSelected = !isPersonal && selectedTagId === node.id;
 
             const r = (6 + node.relevance * 4) / globalScale;
             const corner = r * 0.18;
@@ -345,7 +350,7 @@ export const TagGraph = React.memo(function TagGraph({
               return;
             }
 
-            // ── Regular tag node (unchanged) ────────────────────────────
+            // ── Regular tag node ────────────────────────────
             if (active) {
               ctx.save();
               ctx.shadowColor = GREEN_BRIGHT;
@@ -357,17 +362,16 @@ export const TagGraph = React.memo(function TagGraph({
             ctx.fill();
 
             drawRoundedHex(ctx, cx, cy, r, corner);
-            ctx.strokeStyle = active ? GREEN_BRIGHT : GREEN_DIM;
-            ctx.lineWidth = (active ? 1.8 : 1.2) / globalScale;
-            ctx.stroke();
+            ctx.strokeStyle = isSelected || active ? GREEN_BRIGHT : GREEN_DIM;
+            ctx.lineWidth = (isSelected || active ? 1.8 : 1.2) / globalScale;
 
-            if (active) ctx.restore();
+            if (isSelected || active) ctx.restore();
 
             const fontSize = Math.max(10, 11) / globalScale;
-            ctx.font = `${active ? 600 : 400} ${fontSize}px ui-monospace, monospace`;
+            ctx.font = `${isSelected || active ? 600 : 400} ${fontSize}px ui-monospace, monospace`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'top';
-            ctx.fillStyle = active ? GREEN_BRIGHT : GREEN_TEXT;
+            ctx.fillStyle = isSelected || active ? GREEN_BRIGHT : GREEN_TEXT;
             ctx.fillText(node.label, cx, cy + r + 3 / globalScale);
           }}
           nodeRelSize={6}
@@ -376,6 +380,12 @@ export const TagGraph = React.memo(function TagGraph({
           height={dims.height}
           cooldownTicks={120}
           onEngineStop={() => graphRef.current?.zoomToFit(400)}
+          onNodeClick={(rawNode) => {
+            const node = rawNode as GraphNode;
+            if (node.type === 'personal' || !onTagClick) return;
+            const tag = tags.find((t) => t.id === node.id);
+            if (tag) onTagClick(tag);
+          }}
         />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,var(--background)_100%)] opacity-25" />
       </div>

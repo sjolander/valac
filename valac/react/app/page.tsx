@@ -45,6 +45,21 @@ export default function Home() {
   const dragStartX = useRef(0);
   const dragStartWidth = useRef(0);
 
+  // ── Bidirectional highlight state ─────────────────────────────────────────
+  const [activeConversationTagIds, setActiveConversationTagIds] = useState<
+    Set<string>
+  >(new Set());
+  const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
+  const [highlightedConversationIds, setHighlightedConversationIds] = useState<
+    Set<string>
+  >(new Set());
+
+  // Ref so SSE handler can read activeId without re-subscribing on every change
+  const activeIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    activeIdRef.current = activeId;
+  }, [activeId]);
+
   const conversationId = useRef<string>(generateId());
 
   const { facts: personalFacts, refresh: refreshFacts } =
@@ -70,22 +85,43 @@ export default function Home() {
     }
   }, []);
 
+  const fetchConversationTags = useCallback(async (id: string | null) => {
+    if (!id) {
+      setActiveConversationTagIds(new Set());
+      return;
+    }
+    try {
+      const res = await fetch(`${API_URL}/conversations/${id}/tags`);
+      const { labels } = (await res.json()) as { labels: string[] };
+      setActiveConversationTagIds(new Set(labels.map((l) => l.toLowerCase())));
+    } catch {
+      setActiveConversationTagIds(new Set());
+    }
+  }, []);
+
   useEffect(() => {
     fetchConversations();
     fetchTags();
   }, [fetchConversations, fetchTags]);
 
-  // ── SSE — refresh both tags and personal facts when memory settles ────────
+  // Fetch tags for active conversation whenever it changes
+  useEffect(() => {
+    fetchConversationTags(activeId);
+  }, [activeId, fetchConversationTags]);
+
+  // ── SSE ───────────────────────────────────────────────────────────────────
   useEffect(() => {
     const es = new EventSource(`${API_URL}/events`);
     es.onmessage = (e) => {
       if (e.data === 'tags_updated') {
         fetchTags();
         refreshFacts();
+        // Re-sync active conversation's tags — new memory may have added some
+        fetchConversationTags(activeIdRef.current);
       }
     };
     return () => es.close();
-  }, [fetchTags, refreshFacts]);
+  }, [fetchTags, refreshFacts, fetchConversationTags]);
 
   useEffect(() => {
     setRightPanelWidth(rightView === 'graph' ? 500 : 256);
@@ -119,6 +155,30 @@ export default function Home() {
     [rightPanelWidth],
   );
 
+  // ── Tag selection (tag → highlight conversations) ─────────────────────────
+
+  const handleTagClick = useCallback(
+    (tag: Tag) => {
+      const next = selectedTagId === tag.id ? null : tag.id;
+      setSelectedTagId(next);
+
+      if (!next) {
+        setHighlightedConversationIds(new Set());
+        return;
+      }
+
+      fetch(
+        `${API_URL}/tags/conversations?label=${encodeURIComponent(tag.label)}`,
+      )
+        .then((r) => r.json())
+        .then(({ conversation_ids }: { conversation_ids: string[] }) => {
+          setHighlightedConversationIds(new Set(conversation_ids));
+        })
+        .catch(() => setHighlightedConversationIds(new Set()));
+    },
+    [selectedTagId],
+  );
+
   // ── Conversation management ───────────────────────────────────────────────
 
   const handleSelect = useCallback(
@@ -128,6 +188,9 @@ export default function Home() {
       conversationId.current = id;
       setMessages([]);
       setStatusLines([]);
+      // Clear tag selection when switching conversations
+      setSelectedTagId(null);
+      setHighlightedConversationIds(new Set());
       try {
         const res = await fetch(`${API_URL}/conversations/${id}/messages`);
         const data = await res.json();
@@ -144,6 +207,8 @@ export default function Home() {
     setActiveId(null);
     setMessages([]);
     setStatusLines([]);
+    setSelectedTagId(null);
+    setHighlightedConversationIds(new Set());
   }, []);
 
   // ── Send ──────────────────────────────────────────────────────────────────
@@ -153,7 +218,7 @@ export default function Home() {
       setStatusLines([]);
       const prompt = (override ?? input).trim();
       if (!prompt || isLoading) return;
-      if (override) setInput(''); // clear if came from suggestion
+      if (override) setInput('');
 
       if (!activeId) setActiveId(conversationId.current);
 
@@ -208,9 +273,7 @@ export default function Home() {
   );
 
   const handleSuggestionClick = useCallback(
-    (text: string) => {
-      handleSend(text);
-    },
+    (text: string) => handleSend(text),
     [handleSend],
   );
 
@@ -233,6 +296,7 @@ export default function Home() {
           <ConversationList
             conversations={conversations}
             activeId={activeId}
+            highlightedIds={highlightedConversationIds}
             onSelect={handleSelect}
             onNewChat={handleNewChat}
           />
@@ -289,7 +353,6 @@ export default function Home() {
         className="h-full border-l border-border/50 bg-sidebar transition-[width] duration-300 ease-in-out relative"
         style={{ width: rightPanelOpen ? rightPanelWidth : 0 }}
       >
-        {/* Drag handle */}
         {rightPanelOpen && (
           <div
             onMouseDown={handleDragStart}
@@ -302,9 +365,8 @@ export default function Home() {
             rightPanelOpen ? 'opacity-100' : 'opacity-0',
           )}
         >
-          {/* ── Toggle header ── */}
+          {/* Toggle header */}
           <div className="border-b border-border/50 p-3 space-y-2 shrink-0">
-            {/* Content: Topics | Profile */}
             <div className="flex rounded-lg bg-secondary/50 p-0.5 gap-0.5">
               {(['topics', 'profile'] as const).map((mode) => (
                 <button
@@ -321,7 +383,6 @@ export default function Home() {
                 </button>
               ))}
             </div>
-            {/* View: List | Graph — only meaningful for Topics */}
             <div className="flex rounded-lg bg-secondary/50 p-0.5 gap-0.5">
               {(['list', 'graph'] as const).map((view) => (
                 <button
@@ -340,12 +401,15 @@ export default function Home() {
             </div>
           </div>
 
-          {/* ── Content ── */}
+          {/* Content */}
           <div className="flex-1 overflow-hidden">
             {rightView === 'graph' ? (
               <TagGraph
                 tags={rightContent === 'topics' ? tags : []}
                 personalFacts={rightContent === 'profile' ? personalFacts : []}
+                activeConversationTagIds={activeConversationTagIds}
+                selectedTagId={selectedTagId}
+                onTagClick={handleTagClick}
                 onClose={() => setRightView('list')}
               />
             ) : rightContent === 'profile' ? (
@@ -379,7 +443,12 @@ export default function Home() {
                 )}
               </div>
             ) : (
-              <TagsPanel tags={tags} onTagClick={() => setRightView('graph')} />
+              <TagsPanel
+                tags={tags}
+                activeTagIds={activeConversationTagIds}
+                selectedTagId={selectedTagId}
+                onTagClick={handleTagClick}
+              />
             )}
           </div>
         </div>
