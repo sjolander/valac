@@ -45,6 +45,8 @@ export default function Home() {
   const dragStartX = useRef(0);
   const dragStartWidth = useRef(0);
 
+  const [forgetful, setForgetful] = useState(false);
+
   // ── Bidirectional highlight state ─────────────────────────────────────────
   const [activeConversationTagIds, setActiveConversationTagIds] = useState<
     Set<string>
@@ -247,7 +249,7 @@ export default function Home() {
       setIsLoading(true);
       setStatusLines([]);
 
-      await streamAsk(prompt, conversationId.current, USER_ID, {
+      await streamAsk(prompt, conversationId.current, USER_ID, forgetful, {
         onToken: (token) =>
           setMessages((prev) =>
             prev.map((m) =>
@@ -345,6 +347,8 @@ export default function Home() {
             onSuggestionClick={handleSuggestionClick}
             isLoading={isLoading}
             statusLines={statusLines}
+            forgetful={forgetful}
+            onForgetfulChange={setForgetful}
           />
         </div>
       </main>

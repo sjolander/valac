@@ -81,7 +81,7 @@ Navigate to [http://localhost:3000](http://localhost:3000). Start chatting — m
 
 ### Resetting all data
 
-The UI has a **Wipe DB** button in the conversation sidebar that clears all messages, memory, and topics. This cannot be undone.
+The UI has a **Wipe DB** button in the conversation sidebar that clears all messages, memory, and topics. This cannot be undone. Deleting data by conversation and topic is on the roadmap, but not implemented yet.
 
 ---
 
@@ -97,19 +97,19 @@ Note: containerized Ollama is significantly slower without GPU passthrough confi
 
 ---
 
-## Current Status: Functional with memories across conversation boundaries with visualizations for topics and personal data
+## Current Status: Phase 2 Complete. Persistent memory across conversations with interactive knowledge visualizations
 
 **Known Issues**
 
-- Post-response processing can overwhelm the LLM and cause failed writes — need to use a lighter model for smaller processes like topic updates; will push post-response tasks to workers through a durable queue like Redis with Celery.
-- Chokes on embedding when given long code snippets
+- Post-response processing can overwhelm the LLM and cause failed writes — need to use a lighter model for smaller processes like topic updates, probably asyncio.Queue
+- Embedding assumes shorter prompt length; need to adapt to various prompt sizes
 
 ## ✅ Phase 1: Proof of Concept
 
 Goal: A self-contained, local system that runs end-to-end.
 
 - [x] React + Vite frontend sends user input to backend
-- [x] Node.js backend with `/ask` endpoint
+- [x] Preliminary Node.js backend with `/ask` endpoint (will port to Python in phase 2)
 - [x] Ollama LLM (e.g., Mistral) running locally
 - [x] Generate embeddings from user prompts
 - [x] Store and query vector data using Qdrant (previously Chroma)
@@ -139,6 +139,7 @@ Goal: Display memories as conversations and topics/tags and allow editing
   - [x] Allow separate graphs for user vs. general memories
 - [x] Complete memory wipe
 - [x] Add automatic web search functionality
+- [x] "Forgetful mode" where interactions take advantage of stored memory to build responses but do not write to memory
 
 ---
 
@@ -146,16 +147,17 @@ Goal: Display memories as conversations and topics/tags and allow editing
 
 Goal: Agency and passive memory management
 
+- [ ] LLM model selection via UI
 - [ ] Memory deletion from UI
   - [ ] Delete conversation
-  - [ ] Delete tag
+  - [ ] Delete topic
 - [ ] DB size limit control in UI
 - [ ] Memory locks in UI - User marks a memory/topic/conversation as permanent and not a candidate for deletion and/or summarization
 - [ ] Memory summarization
 - [ ] Enable Valac to trim its own memory autonomously
 - [ ] Display web links for sources
 - [ ] Durable post-response worker queue
-- [ ] Investigate MCP
+- [ ] MCP client integration for tool consolidation
 - [ ] Integrate LangChain plugins
 - [ ] User selectable LLM models for core and auxiliary tasks
 
@@ -168,6 +170,7 @@ Goal: Cloud-based deployment for quick demonstrations
 - [ ] Reconfigure for AWS
 - [ ] Add authentication, rate limiting, logging
 - [ ] Improve error handling and user feedback
+- [ ] Add unit tests
 
 ## Unscheduled features
 

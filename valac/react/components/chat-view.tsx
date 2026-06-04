@@ -2,7 +2,7 @@
 
 import { cn } from '@/lib/utils';
 import { useRef, useEffect } from 'react';
-import { Send, Sparkles, User } from 'lucide-react';
+import { Send, Sparkles, User, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -23,6 +23,8 @@ interface ChatViewProps {
   onSuggestionClick: (value: string) => void;
   isLoading?: boolean;
   statusLines?: string[];
+  forgetful: boolean;
+  onForgetfulChange: (value: boolean) => void;
 }
 
 export function ChatView({
@@ -33,6 +35,8 @@ export function ChatView({
   onSuggestionClick,
   isLoading,
   statusLines = [],
+  forgetful,
+  onForgetfulChange,
 }: ChatViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -261,6 +265,26 @@ export function ChatView({
               className="flex-1 resize-none bg-transparent px-2 py-2 text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none"
               style={{ minHeight: '44px', maxHeight: '200px' }}
             />
+            <div className="group relative shrink-0">
+              <button
+                type="button"
+                onClick={() => onForgetfulChange(!forgetful)}
+                className={cn(
+                  'flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200',
+                  forgetful
+                    ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                    : 'text-muted-foreground/30 hover:text-muted-foreground hover:bg-muted/50',
+                )}
+              >
+                <EyeOff className="h-4 w-4" />
+              </button>
+              <div className="pointer-events-none absolute bottom-full right-0 mb-2 w-60 rounded-xl border border-border bg-popover px-3 py-2.5 text-[11px] leading-relaxed text-muted-foreground shadow-lg opacity-0 transition-opacity duration-150 group-hover:opacity-100 z-50">
+                {forgetful
+                  ? "Forgetful mode is on — this conversation won't be saved to memory or used to update your profile."
+                  : 'Forgetful mode is off — Valac will remember this conversation normally.'}
+                <div className="absolute -bottom-1 right-3.5 h-2 w-2 rotate-45 border-b border-r border-border bg-popover" />
+              </div>
+            </div>
             <Button
               onClick={onSend}
               disabled={!input.trim() || isLoading}

@@ -20,6 +20,7 @@ export async function streamAsk(
   prompt: string,
   conversationId: string,
   userId: string,
+  forgetful: boolean,
   callbacks: StreamCallbacks,
 ): Promise<void> {
   const response = await fetch(`${API_URL}/ask`, {
@@ -29,6 +30,7 @@ export async function streamAsk(
       prompt,
       conversation_id: conversationId,
       user_id: userId,
+      forgetful: forgetful,
     }),
   });
 

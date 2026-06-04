@@ -386,14 +386,19 @@ async def ask(req: AskRequest):
             # ── 7. Update history ─────────────────────────────────────────
             assistant_message = "".join(full_response)
 
-            # Ensure conversation exists / update timestamp
+            history.append({"role": "user",      "content": req.prompt})
+            history.append({"role": "assistant",  "content": assistant_message})
+
+            if req.forgetful:
+                # We're not saving this to persistent memory, so we're done.
+                return
+
+            # ── 8. Persist to Postgres ────────────────────────────────────
             await ensure_conversation(req.conversation_id)
 
-            # Persist messages atomically with proper turn ordering
             pool = await get_pool()
             async with pool.acquire() as conn:
                 base_turn = await get_next_turn_index(req.conversation_id, conn)
-
                 stored_at = datetime.now(timezone.utc)
 
                 user_record = MessageRecord(
@@ -404,7 +409,6 @@ async def ask(req: AskRequest):
                     content=req.prompt,
                     created_at=stored_at,
                 )
-
                 assistant_record = MessageRecord(
                     message_id=str(uuid.uuid4()),
                     conversation_id=req.conversation_id,
@@ -421,39 +425,29 @@ async def ask(req: AskRequest):
                     title = raw_title if len(req.prompt) <= 60 else raw_title + "..."
                     await set_conversation_title(req.conversation_id, title)
 
-            history.append({"role": "user", "content": req.prompt})
-            history.append({"role": "assistant", "content": assistant_message})
- 
-            # ── 8. Background tasks — per-fact extraction + topic chunking ─
-            #       Both are fire-and-forget; store_memory waits up to 45s
-            #       for tags, process_turn_post_response is fully detached.
-
+            # ── 9. Background tasks ───────────────────────────────────────
             asyncio.create_task(store_message_chunks(
                 message_id=user_record.message_id,
                 conversation_id=req.conversation_id,
                 text=req.prompt,
             ))
-
             asyncio.create_task(store_message_chunks(
                 message_id=assistant_record.message_id,
                 conversation_id=req.conversation_id,
                 text=assistant_message,
             ))
- 
             asyncio.create_task(store_memory(
                 user_message=req.prompt,
                 assistant_message=assistant_message,
                 user_id=req.user_id,
                 conversation_id=req.conversation_id,
             ))
- 
             asyncio.create_task(process_turn_post_response(
                 conversation_id=req.conversation_id,
-                query_vector=query_vector,        # reuse — already computed in step 1
+                query_vector=query_vector,
                 user_record=user_record,
-                assistant_record=assistant_record
+                assistant_record=assistant_record,
             ))
-
             if is_personal:
                 asyncio.create_task(extract_and_store_personal_facts(
                     user_message=req.prompt,
